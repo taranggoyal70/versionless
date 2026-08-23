@@ -15,12 +15,13 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
   const verification = state.verification;
   if (!verification || !state.diff) return null;
 
-  const testCount = Number(verification.testSummary.match(/Tests\s+(\d+) passed/)?.[1] ?? 0);
+  const testCountMatch = verification.testSummary.match(/Tests\s+(\d+) passed|ℹ pass (\d+)/);
+  const testCount = Number(testCountMatch?.[1] ?? testCountMatch?.[2] ?? 0);
   const testFileCount = Number(verification.testSummary.match(/Test Files\s+(\d+) passed/)?.[1] ?? 0);
   const tests = [
-    { name: state.proofClaims[0], input: "46 existing + 5 acceptance", result: `${testCount} passed` },
-    { name: state.proofClaims[1], input: "4 malformed timestamp formats", result: "All refused" },
-    { name: "Canonical approval path preserved", input: "2026-08-24T00:00:00.000Z", result: "Accepted" },
+    { name: state.proofClaims[0] ?? "Selected verification passes", input: `${testFileCount || 1} verification files`, result: testCount ? `${testCount} passed` : "Passed" },
+    { name: state.proofClaims[1] ?? "Locked paths are unchanged", input: `${state.lockedPaths.length} protected paths`, result: "Hash matched" },
+    { name: state.proofClaims[2] ?? "Change stayed in scope", input: state.allowedFiles.join(", "), result: "Scope held" },
   ];
   const agentEvents = state.events.filter((event) => event.type === "agent.message").length;
 
@@ -31,7 +32,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
         <div className="dossier-title-block">
           <div className="dossier-kicker">Verification dossier · {state.runId}</div>
           <h1 id="dossier-title">Safe to merge.</h1>
-          <p>Codex hardened Warrant’s security gate. Every original test and the new acceptance contract passed without changing the proof.</p>
+          <p>Codex changed {state.repositoryLabel}. The selected verification passed without changing the locked proof or leaving the allowed scope.</p>
         </div>
         <div className="dossier-actions">
           <button className="primary-button" onClick={onRunAgain} disabled={running}>Run fresh with Codex</button>
@@ -41,7 +42,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
       </header>
 
       <div className="proof-scoreboard" aria-label="Verification summary">
-        <article><small>REAL TESTS</small><strong>{testCount} / {testCount}</strong><span>passed across {testFileCount} files</span></article>
+        <article><small>REAL TESTS</small><strong>{testCount || "✓"}</strong><span>{testCount ? `passed across ${testFileCount} files` : "verification passed"}</span></article>
         <article><small>PROTECTED FILES</small><strong>0</strong><span>changed</span></article>
         <article><small>IMPLEMENTATION</small><strong>{state.filesChanged}</strong><span>file changed</span></article>
         <article><small>CODEX TRACE</small><strong>{agentEvents}</strong><span>agent events</span></article>
@@ -60,12 +61,12 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
             <code>{bareHash(verification.actualHash)}</code>
           </div>
         </div>
-        <p className="proof-explanation"><span>✓</span> SHA-256 fingerprints match. Warrant’s tests, generated protocol, and build contract are unchanged.</p>
+        <p className="proof-explanation"><span>✓</span> SHA-256 fingerprints match. Every selected test, contract, lockfile, and configuration path is unchanged.</p>
       </section>
 
       <div className="dossier-grid">
         <section className="flow-proof" aria-labelledby="flow-proof-title">
-          <div className="section-label"><span>PROOF 02</span><h2 id="flow-proof-title">The real Warrant suite passed</h2></div>
+          <div className="section-label"><span>PROOF 02</span><h2 id="flow-proof-title">The selected verification passed</h2></div>
           <div className="flow-table">
             {tests.map((test) => (
               <div className="flow-row" key={test.name}>
@@ -84,9 +85,8 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
 
         <section className="scope-proof" aria-labelledby="scope-proof-title">
           <div className="section-label"><span>PROOF 03</span><h2 id="scope-proof-title">Only the allowed file changed</h2></div>
-          <div className="scope-file"><span>CHANGED</span><code>{state.allowedFiles[0]}</code><strong>timestamp validation only</strong></div>
-          <div className="scope-file protected"><span>LOCKED</span><code>test/ + acceptance contract</code><strong>unchanged</strong></div>
-          <div className="scope-file protected"><span>LOCKED</span><code>src/protocol/ + lockfile</code><strong>unchanged</strong></div>
+          <div className="scope-file"><span>CHANGED</span><code>{state.allowedFiles.join(", ")}</code><strong>{state.filesChanged} implementation file changed</strong></div>
+          {state.lockedPaths.slice(0, 2).map((lockedPath) => <div className="scope-file protected" key={lockedPath}><span>LOCKED</span><code>{lockedPath}</code><strong>unchanged</strong></div>)}
         </section>
       </div>
 

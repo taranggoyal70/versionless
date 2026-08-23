@@ -2,11 +2,22 @@ export type Impact = {
   file: string;
   line: number;
   column: number;
-  kind: "removed-field" | "unvalidated-input";
+  kind: "removed-field" | "unvalidated-input" | "requested-change";
   symbol: string;
   evidence: string;
   guidance: string;
 };
+
+export type MigrationTargetRequest =
+  | { type: "warrant" }
+  | {
+      type: "local";
+      repositoryPath: string;
+      task: string;
+      allowedFiles: string[];
+      lockedPaths: string[];
+      verificationCommand: { executable: string; args: string[] };
+    };
 
 export type IntegrityState = "unchanged" | "changed";
 
@@ -30,6 +41,7 @@ export type MigrationEvent =
       repositoryLabel?: string;
       task?: string;
       allowedFiles?: string[];
+      lockedPaths?: string[];
       proofClaims?: string[];
       at: string;
     }

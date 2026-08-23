@@ -19,6 +19,7 @@ export type MigrationState = {
   repositoryLabel: string;
   task: string;
   allowedFiles: string[];
+  lockedPaths: string[];
   proofClaims: string[];
   impacts: Impact[];
   lockedHash: string | null;
@@ -42,6 +43,7 @@ export const initialMigrationState: MigrationState = {
   repositoryLabel: "taranggoyal70 / warrant",
   task: "Validate every approval timestamp before it becomes part of an audit record.",
   allowedFiles: ["src/gate.ts"],
+  lockedPaths: ["test", "src/protocol", "package.json", "pnpm-lock.yaml"],
   proofClaims: [
     "All original Warrant tests still pass",
     "Invalid audit timestamps are refused",
@@ -74,6 +76,7 @@ export function reduceMigrationEvent(state: MigrationState, event: MigrationEven
         repositoryLabel: event.repositoryLabel ?? state.repositoryLabel,
         task: event.task ?? state.task,
         allowedFiles: event.allowedFiles ?? state.allowedFiles,
+        lockedPaths: event.lockedPaths ?? state.lockedPaths,
         proofClaims: event.proofClaims ?? state.proofClaims,
       };
     case "impact.found":

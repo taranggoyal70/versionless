@@ -4,7 +4,7 @@ import { useMemo, useReducer, useState } from "react";
 
 import { VerificationDossier } from "@/components/verification-dossier";
 import { initialMigrationState, reduceMigrationEvent, type MigrationPhase } from "@/lib/migration/state";
-import type { MigrationEvent } from "@/lib/migration/types";
+import type { MigrationEvent, MigrationTargetRequest } from "@/lib/migration/types";
 
 const steps = [
   { key: "impact", number: "01", label: "Find the gap", detail: "Trace unvalidated audit data into Warrant." },
@@ -16,8 +16,8 @@ const steps = [
 
 const eventLabels: Record<MigrationEvent["type"], string> = {
   "run.started": "Migration opened",
-  "contract.loaded": "Stripe release loaded",
-  "impact.found": "Breaking callsite found",
+  "contract.loaded": "Repository contract loaded",
+  "impact.found": "Implementation boundary found",
   "integrity.locked": "Behavior contract locked",
   "baseline.failed": "Break reproduced",
   "agent.started": "Codex started",
@@ -74,7 +74,7 @@ function compactHash(hash: string | null) {
   return `${hash.slice(0, 15)}…${hash.slice(-8)}`;
 }
 
-function ProductNavigation() {
+function ProductNavigation({ repositoryLabel }: { repositoryLabel: string }) {
   return (
     <nav className="topbar" aria-label="Product navigation">
       <a className="brand" href="#top" aria-label="Versionless home">
@@ -83,17 +83,19 @@ function ProductNavigation() {
       </a>
       <div className="repo-pill">
         <span className="repo-dot" />
-        taranggoyal70 / warrant
+        {repositoryLabel}
       </div>
       <div className="top-status"><span>Migration runtime</span><strong>local only</strong></div>
     </nav>
   );
 }
 
-export function ControlRoom() {
+export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetRequest?: MigrationTargetRequest }) {
   const [state, dispatch] = useReducer(reduceMigrationEvent, initialMigrationState);
   const [running, setRunning] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const isWarrant = targetRequest.type === "warrant";
+  const repositoryLabel = isWarrant ? "taranggoyal70 / warrant" : targetRequest.repositoryPath;
 
   const progress = useMemo(() => {
     if (state.phase === "verified" || state.phase === "rejected") return 100;
@@ -111,7 +113,7 @@ export function ControlRoom() {
       const response = await fetch("/api/migrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
+        body: JSON.stringify({ mode, target: targetRequest }),
       });
       if (!response.ok || !response.body) throw new Error("The migration service did not start.");
 
@@ -144,7 +146,7 @@ export function ControlRoom() {
   if (verified && state.verification && state.diff) {
     return (
       <main className="shell proof-shell">
-        <ProductNavigation />
+        <ProductNavigation repositoryLabel={state.repositoryLabel || repositoryLabel} />
         <VerificationDossier
           state={state}
           running={running}
@@ -157,30 +159,28 @@ export function ControlRoom() {
 
   return (
     <main className="shell">
-      <ProductNavigation />
+      <ProductNavigation repositoryLabel={repositoryLabel} />
 
       <section className="hero" id="top">
-        <div className="eyebrow"><span>Live repository</span> Warrant security hardening</div>
+        <div className="eyebrow"><span>Live repository</span> {isWarrant ? "Warrant security hardening" : "Custom verified change"}</div>
         <div className="hero-grid">
           <div>
-            <h1>Can Codex change security code<br /><em>without changing the proof?</em></h1>
-            <p className="lede">Versionless clones the real Warrant repository, locks its full test contract, gives Codex one allowed file, then proves every security invariant still holds.</p>
+            <h1>Can Codex change {isWarrant ? "security code" : "this repository"}<br /><em>without changing the proof?</em></h1>
+            <p className="lede">{isWarrant ? "Versionless clones the real Warrant repository, locks its full test contract, gives Codex one allowed file, then proves every security invariant still holds." : "Versionless clones your repository, hashes every locked path, gives Codex only the files you selected, then verifies the patch from clean state."}</p>
             <div className="hero-actions">
               <button className="primary-button" onClick={() => startMigration("codex")} disabled={running}>
                 <span>{running ? "Migration running" : verified ? "Run again with Codex" : "Repair with Codex"}</span>
                 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" /></svg>
               </button>
-              <button className="replay-button" onClick={() => startMigration("replay")} disabled={running}>
-                Replay verified run
-              </button>
+              {isWarrant && <button className="replay-button" onClick={() => startMigration("replay")} disabled={running}>Replay verified run</button>}
             </div>
-            <p className="fallback-note">Live Codex is the main path. Replay is the on-stage fallback.</p>
+            <p className="fallback-note">{isWarrant ? "Live Codex is the main path. Replay is the on-stage fallback." : "The selected verification command must currently fail for this requested behavior."}</p>
           </div>
 
           <div className={`contract-bridge ${verified ? "is-fixed" : ""}`} aria-label="Warrant contract hardening">
-            <div className="version-card old"><small>CURRENT</small><strong>{state.fromVersion}</strong><span>approvedAt accepted raw</span></div>
+            <div className="version-card old"><small>CURRENT</small><strong>{state.fromVersion}</strong><span>{isWarrant ? "approvedAt accepted raw" : "acceptance test fails"}</span></div>
             <div className="bridge-line"><span className="pulse" /><b>{verified ? "VERIFIED" : "BREAKING"}</b></div>
-            <div className="version-card target"><small>TARGET</small><strong>{state.toVersion}</strong><span>canonical UTC only</span></div>
+            <div className="version-card target"><small>TARGET</small><strong>{state.toVersion}</strong><span>{isWarrant ? "canonical UTC only" : "same locked proof passes"}</span></div>
           </div>
         </div>
       </section>
@@ -220,12 +220,12 @@ export function ControlRoom() {
           </div>
 
           <div className="impact-summary">
-            <div><small>{state.impacts.length ? "AUDIT INTEGRITY GAP" : "REAL REPOSITORY PREVIEW"}</small><h2>Unvalidated timestamps enter signed approval records</h2></div>
+            <div><small>{state.impacts.length ? "REQUESTED CHANGE" : "REAL REPOSITORY PREVIEW"}</small><h2>{isWarrant ? "Unvalidated timestamps enter signed approval records" : targetRequest.type === "local" ? targetRequest.task : state.targetName}</h2></div>
             <span className={verified ? "resolved-badge" : "risk-badge"}>{verified ? "RESOLVED" : state.impacts.length ? "HIGH IMPACT" : "NOT SCANNED"}</span>
           </div>
 
           <div className="code-window">
-            <div className="code-bar"><span><i /><i /><i /></span><code>src/gate.ts</code><b>{state.impacts.length} {state.impacts.length === 1 ? "boundary" : "boundaries"}</b></div>
+            <div className="code-bar"><span><i /><i /><i /></span><code>{isWarrant ? "src/gate.ts" : targetRequest.type === "local" ? targetRequest.allowedFiles[0] : state.allowedFiles[0]}</code><b>{state.impacts.length} {state.impacts.length === 1 ? "boundary" : "boundaries"}</b></div>
             {state.diff ? (
               <pre className="diff" aria-label="Generated migration diff">
                 {state.diff.split("\n").map((line, index) => (
@@ -234,20 +234,26 @@ export function ControlRoom() {
               </pre>
             ) : (
               <div className="source-preview">
-                <div><span>97</span><code>{"const { artifact, approver, policy, approvedAt } = input;"}</code></div>
-                <div><span>98</span><code>{"if (!approver.trim()) throw new Error(…);"}</code></div>
-                <div className="danger-line"><span>99</span><code><mark>approvedAt is never validated</mark></code><b>UNTRUSTED</b></div>
-                <div><span>100</span><code>{"return { digest: artifact.digest, approvedAt, … };"}</code></div>
+                {isWarrant ? <>
+                  <div><span>97</span><code>{"const { artifact, approver, policy, approvedAt } = input;"}</code></div>
+                  <div><span>98</span><code>{"if (!approver.trim()) throw new Error(…);"}</code></div>
+                  <div className="danger-line"><span>99</span><code><mark>approvedAt is never validated</mark></code><b>UNTRUSTED</b></div>
+                  <div><span>100</span><code>{"return { digest: artifact.digest, approvedAt, … };"}</code></div>
+                </> : <>
+                  <div><span>01</span><code>{"// Selected implementation boundary"}</code></div>
+                  <div className="danger-line"><span>02</span><code><mark>{targetRequest.type === "local" ? targetRequest.allowedFiles.join(", ") : "allowed implementation"}</mark></code><b>CODEX SCOPE</b></div>
+                  <div><span>03</span><code>{"// Locked paths remain outside agent scope"}</code></div>
+                </>}
               </div>
             )}
           </div>
 
           <div className="proof-grid">
             <article className={state.baselineBroken ? "proof-card failed-proof" : "proof-card"}>
-              <small>BEFORE CODEX</small><strong>{state.baselineBroken ? "4 attack cases failed" : "Waiting for isolated run"}</strong><p>Malformed timestamps entered the audit record.</p>
+              <small>BEFORE CODEX</small><strong>{state.baselineBroken ? (isWarrant ? "4 attack cases failed" : "Requested behavior fails") : "Waiting for isolated run"}</strong><p>{isWarrant ? "Malformed timestamps entered the audit record." : "The selected verification must reproduce the gap before Codex starts."}</p>
             </article>
             <article className={verified ? "proof-card passed-proof" : "proof-card"}>
-              <small>AFTER CODEX</small><strong>{verified ? "51 security tests passed" : "Locked suite waiting"}</strong><p>{verified ? `Passed in ${state.verification?.durationMs ?? 0}ms. Test hash matched.` : "The same Warrant suite will run after Codex."}</p>
+              <small>AFTER CODEX</small><strong>{verified ? "Locked verification passed" : "Locked suite waiting"}</strong><p>{verified ? `Passed in ${state.verification?.durationMs ?? 0}ms. Test hash matched.` : "The same verification will run after Codex."}</p>
             </article>
             <article className="proof-card agent-proof">
               <small>{state.agentName ?? "OPENAI CODEX"}</small><strong>{state.filesChanged ? `${state.filesChanged} file changed` : "Constrained repair"}</strong><p>{state.agentMessages.at(-1) ?? "Can edit src/gate.ts. Cannot edit the proof."}</p>

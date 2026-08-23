@@ -1,10 +1,6 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isProtectedRoute = createRouteMatcher(["/workspace(.*)", "/api/migrations(.*)"]);
-
-export default clerkMiddleware(async (auth, request) => {
-  if (isProtectedRoute(request)) await auth.protect();
-}, {
+export default clerkMiddleware({
   signInUrl: "/sign-in",
   signUpUrl: "/sign-up",
 });

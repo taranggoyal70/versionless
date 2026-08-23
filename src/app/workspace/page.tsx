@@ -1,5 +1,10 @@
-import { ControlRoom } from "@/components/control-room";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-export default function WorkspacePage() {
-  return <ControlRoom />;
+import { WorkspaceShell } from "@/components/workspace-shell";
+
+export default async function WorkspacePage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in?redirect_url=/workspace");
+  return <WorkspaceShell />;
 }

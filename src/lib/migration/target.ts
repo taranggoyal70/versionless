@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import type { Impact } from "./types";
+import type { Impact, MigrationTargetRequest } from "./types";
 
 export type VerificationCommand = {
   executable: string;
@@ -18,7 +18,7 @@ export type MigrationTarget = {
   allowedFiles: string[];
   lockedPaths: string[];
   verificationCommand: VerificationCommand;
-  fixture: { source: string; destination: string };
+  fixture?: { source: string; destination: string };
   supportPaths: string[];
   impacts: Impact[];
   proofClaims: string[];
@@ -69,6 +69,38 @@ export function warrantTarget(): MigrationTarget {
       "All original Warrant tests still pass",
       "Invalid audit timestamps are refused",
       "Only src/gate.ts changed",
+    ],
+  };
+}
+
+export function localTarget(request: Extract<MigrationTargetRequest, { type: "local" }>): MigrationTarget {
+  const sourceRoot = path.resolve(/* turbopackIgnore: true */ request.repositoryPath);
+  const repositoryLabel = path.basename(sourceRoot);
+  return {
+    id: `local:${repositoryLabel}`,
+    name: `Requested change in ${repositoryLabel}`,
+    repositoryLabel,
+    sourceRoot,
+    fromVersion: "Current failing contract",
+    toVersion: "Requested behavior",
+    task: request.task,
+    allowedFiles: request.allowedFiles,
+    lockedPaths: request.lockedPaths,
+    verificationCommand: request.verificationCommand,
+    supportPaths: [],
+    impacts: request.allowedFiles.map((file) => ({
+      file,
+      line: 1,
+      column: 1,
+      kind: "requested-change",
+      symbol: file,
+      evidence: "User selected this file as the implementation boundary.",
+      guidance: request.task,
+    })),
+    proofClaims: [
+      "The selected verification command passes",
+      "Every locked path remains byte-identical",
+      `Only ${request.allowedFiles.join(", ")} changed`,
     ],
   };
 }

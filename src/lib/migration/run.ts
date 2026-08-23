@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -41,35 +41,56 @@ async function createWorkspace(runId: string, target?: MigrationTarget) {
   const root = await mkdtemp(path.join(base, `${runId}-`));
   if (target) {
     await execFileAsync("git", ["clone", "--local", "--no-hardlinks", "-q", target.sourceRoot, root]);
-    const fixtureDestination = path.join(root, target.fixture.destination);
-    await mkdir(path.dirname(fixtureDestination), { recursive: true });
-    await cp(target.fixture.source, fixtureDestination);
+    const baselineAdditions: string[] = [];
+    if (target.fixture) {
+      const fixtureDestination = path.join(root, target.fixture.destination);
+      await mkdir(path.dirname(fixtureDestination), { recursive: true });
+      await cp(target.fixture.source, fixtureDestination);
+      baselineAdditions.push(target.fixture.destination);
+    }
     for (const supportPath of target.supportPaths) {
       await cp(path.join(target.sourceRoot, supportPath), path.join(root, supportPath), {
         recursive: true,
         verbatimSymlinks: true,
       });
+      baselineAdditions.push(supportPath);
     }
-    await cp(path.join(target.sourceRoot, "node_modules"), path.join(root, "node_modules"), {
-      recursive: true,
-      verbatimSymlinks: true,
-    });
+    const sourceModules = path.join(target.sourceRoot, "node_modules");
+    if (await pathExists(sourceModules)) {
+      await cp(sourceModules, path.join(root, "node_modules"), {
+        recursive: true,
+        verbatimSymlinks: true,
+      });
+    }
+    if (baselineAdditions.length > 0) {
+      await execFileAsync("git", ["add", "-f", ...baselineAdditions], { cwd: root });
+      await execFileAsync(
+        "git",
+        ["-c", "user.name=Versionless", "-c", "user.email=demo@versionless.local", "commit", "-qm", "baseline"],
+        { cwd: root },
+      );
+    }
   } else {
     await cp(path.join(process.cwd(), "demo", "customer-repo"), root, { recursive: true });
     await execFileAsync("git", ["init", "-q"], { cwd: root });
+    await execFileAsync("git", ["add", "."], { cwd: root });
+    await execFileAsync(
+      "git",
+      ["-c", "user.name=Versionless", "-c", "user.email=demo@versionless.local", "commit", "-qm", "baseline"],
+      { cwd: root },
+    );
   }
-  await execFileAsync(
-    "git",
-    target ? ["add", "-f", target.fixture.destination, ...target.supportPaths] : ["add", "."],
-    { cwd: root },
-  );
-  await execFileAsync(
-    "git",
-    ["-c", "user.name=Versionless", "-c", "user.email=demo@versionless.local", "commit", "-qm", "baseline"],
-    { cwd: root },
-  );
   const { stdout: baselineCommit } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
   return { root, baselineCommit: baselineCommit.trim() };
+}
+
+async function pathExists(absolute: string) {
+  try {
+    await access(absolute);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function patchEvidence(root: string, baselineCommit: string, allowedFiles = ALLOWED_IMPLEMENTATION_FILES) {
@@ -173,6 +194,7 @@ export async function runMigration({ agent, onEvent, signal, target }: Migration
       repositoryLabel: target?.repositoryLabel,
       task: target?.task,
       allowedFiles: target?.allowedFiles,
+      lockedPaths: target?.lockedPaths,
       proofClaims: target?.proofClaims,
       at: timestamp(),
     });

@@ -50,6 +50,25 @@ describe("POST /api/migrations", () => {
     await expect(response.json()).resolves.toEqual({ error: "Mode must be either codex or replay." });
   });
 
+  it("rejects malformed JSON without defaulting to codex mode", async () => {
+    delete process.env.VERSIONLESS_DEMO_TOKEN;
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/migrations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          "sec-fetch-site": "same-origin",
+        },
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Request body must be valid JSON." });
+  });
+
   it("reserves the single-flight slot before parsing the body", async () => {
     delete process.env.VERSIONLESS_DEMO_TOKEN;
     const encoder = new TextEncoder();

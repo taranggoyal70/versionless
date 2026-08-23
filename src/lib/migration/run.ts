@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -74,6 +74,18 @@ async function patchEvidence(root: string, baselineCommit: string) {
   return { diff: diff.trim(), filesChanged };
 }
 
+async function createVerificationWorkspace(runId: string, diff: string) {
+  const workspace = await createWorkspace(`${runId}-proof`);
+  const patchPath = path.join(workspace.root, "migration.patch");
+  try {
+    await writeFile(patchPath, `${diff}\n`);
+    await execFileAsync("git", ["apply", "--whitespace=nowarn", patchPath], { cwd: workspace.root });
+  } finally {
+    await rm(patchPath, { force: true });
+  }
+  return workspace.root;
+}
+
 function pathsFromNullList(paths: string) {
   return paths.split("\0").filter(Boolean);
 }
@@ -102,6 +114,7 @@ function throwIfAborted(signal?: AbortSignal) {
 export async function runMigration({ agent, onEvent, signal }: MigrationRunOptions) {
   const runId = `vr_${crypto.randomUUID().slice(0, 8)}`;
   let root: string | null = null;
+  let verificationRoot: string | null = null;
   onEvent({ type: "run.started", runId, at: timestamp() });
 
   try {
@@ -134,9 +147,10 @@ export async function runMigration({ agent, onEvent, signal }: MigrationRunOptio
 
     throwIfAborted(signal);
     const patch = await patchEvidence(root, workspace.baselineCommit);
+    verificationRoot = await createVerificationWorkspace(runId, patch.diff);
     onEvent({ type: "patch.ready", ...patch, at: timestamp() });
     onEvent({ type: "verification.started", at: timestamp() });
-    const verification = await verifyLockedContract(root, lockedHash);
+    const verification = await verifyLockedContract(verificationRoot, lockedHash);
     onEvent({ type: "verification.completed", result: verification, at: timestamp() });
     onEvent({ type: "evidence.ready", artifactCount: 4, at: timestamp() });
 
@@ -148,6 +162,7 @@ export async function runMigration({ agent, onEvent, signal }: MigrationRunOptio
     onEvent({ type: "run.failed", runId, error: message, at: timestamp() });
     throw error;
   } finally {
+    if (verificationRoot) await rm(verificationRoot, { recursive: true, force: true });
     if (root) await rm(root, { recursive: true, force: true });
   }
 }

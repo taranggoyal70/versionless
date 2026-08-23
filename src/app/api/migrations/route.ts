@@ -52,7 +52,13 @@ export async function POST(request: Request) {
   }
 
   activeRun = true;
-  const body = await request.json().catch(() => ({}));
+  let body: unknown;
+  try {
+    body = await parseRequestBody(request);
+  } catch {
+    activeRun = false;
+    return Response.json({ error: "Request body must be valid JSON." }, { status: 400 });
+  }
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     activeRun = false;
@@ -97,4 +103,11 @@ export async function POST(request: Request) {
       "X-Content-Type-Options": "nosniff",
     },
   });
+}
+
+async function parseRequestBody(request: Request): Promise<unknown> {
+  if (!request.body) return {};
+  const text = await request.text();
+  if (!text.trim()) return {};
+  return JSON.parse(text) as unknown;
 }

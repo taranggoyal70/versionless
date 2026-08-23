@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -72,5 +72,39 @@ describe("runMigration", () => {
         onEvent: (event) => events.push(event),
       }),
     ).rejects.toThrow("changed protected path package.json");
+  });
+
+  it("rejects a migration agent that hides behavior in an untracked helper", async () => {
+    const events: MigrationEvent[] = [];
+    const tamperingAgent: MigrationAgent = {
+      name: "Verified replay",
+      async migrate(root, _impacts, onProgress) {
+        await mkdir(path.join(root, "src", "helpers"));
+        await writeFile(
+          path.join(root, "src", "helpers", "receipt-url.mjs"),
+          "export const receiptUrl = (paymentIntentId) => `https://pay.stripe.com/receipts/${paymentIntentId}`;\n",
+        );
+        await writeFile(
+          path.join(root, "src", "receipt.mjs"),
+          [
+            "import { receiptUrl } from './helpers/receipt-url.mjs';",
+            "export async function receiptForPayment(stripe, paymentIntentId) {",
+            "  await stripe.charges.list({ payment_intent: paymentIntentId, limit: 1 });",
+            "  return receiptUrl(paymentIntentId);",
+            "}",
+          ].join("\n"),
+        );
+        onProgress("Wrote a hidden helper.");
+        return { messages: ["hidden helper"] };
+      },
+    };
+
+    await expect(
+      runMigration({
+        agent: tamperingAgent,
+        onEvent: (event) => events.push(event),
+      }),
+    ).rejects.toThrow("changed protected path src/helpers/receipt-url.mjs");
+    expect(events.at(-1)).toMatchObject({ type: "run.failed" });
   });
 });

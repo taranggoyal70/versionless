@@ -38,20 +38,42 @@ async function createWorkspace(runId: string) {
 }
 
 async function patchEvidence(root: string) {
-  const { stdout: names } = await execFileAsync("git", ["diff", "--name-only"], { cwd: root });
-  const changedFiles = names.split("\n").filter(Boolean);
+  const { stdout: status } = await execFileAsync(
+    "git",
+    ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching"],
+    { cwd: root },
+  );
+  const changedFiles = changedPathsFromStatus(status);
   const outOfScope = changedFiles.filter((file) => !ALLOWED_IMPLEMENTATION_FILES.has(file));
   if (outOfScope.length > 0) {
     throw new Error(`Migration rejected: Codex changed protected path ${outOfScope.join(", ")}.`);
   }
+  const implementationFiles = changedFiles.filter((file) => ALLOWED_IMPLEMENTATION_FILES.has(file));
   const { stdout: diff } = await execFileAsync(
     "git",
-    ["diff", "--no-ext-diff", "--unified=3", "--", ...changedFiles],
+    ["diff", "--no-ext-diff", "--unified=3", "HEAD", "--", ...implementationFiles],
     { cwd: root },
   );
-  const filesChanged = changedFiles.length;
+  const filesChanged = implementationFiles.length;
   if (!diff.trim() || filesChanged === 0) throw new Error("The migration agent produced no implementation patch.");
   return { diff: diff.trim(), filesChanged };
+}
+
+function changedPathsFromStatus(status: string) {
+  const changed = new Set<string>();
+  const records = status.split("\0").filter(Boolean);
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    const code = record.slice(0, 2);
+    const file = record.slice(3);
+    if (file) changed.add(file);
+    if (code.includes("R") || code.includes("C")) {
+      const original = records[index + 1];
+      if (original) changed.add(original);
+      index += 1;
+    }
+  }
+  return [...changed].sort();
 }
 
 function throwIfAborted(signal?: AbortSignal) {

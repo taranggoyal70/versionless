@@ -10,11 +10,20 @@ const execFileAsync = promisify(execFile);
 
 async function lockedFiles(root: string): Promise<string[]> {
   const lockedRoot = path.join(root, "locked");
-  const entries = await readdir(lockedRoot, { recursive: true, withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => path.join(entry.parentPath, entry.name))
-    .sort();
+  return (await filesInDirectory(lockedRoot)).sort();
+}
+
+async function filesInDirectory(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map(async (entry) => {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isFile()) return [absolute];
+      if (entry.isDirectory()) return filesInDirectory(absolute);
+      return [];
+    }),
+  );
+  return files.flat();
 }
 
 export async function hashLockedContract(root: string): Promise<string> {

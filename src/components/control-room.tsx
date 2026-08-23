@@ -20,6 +20,7 @@ const eventLabels: Record<MigrationEvent["type"], string> = {
   "impact.found": "Implementation boundary found",
   "integrity.locked": "Behavior contract locked",
   "baseline.failed": "Break reproduced",
+  "sponsor.evidence": "Sponsor evidence received",
   "agent.started": "Codex started",
   "agent.message": "Codex activity",
   "patch.ready": "Patch created",
@@ -96,6 +97,8 @@ export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetReq
   const [streamError, setStreamError] = useState<string | null>(null);
   const isWarrant = targetRequest.type === "warrant";
   const repositoryLabel = isWarrant ? "taranggoyal70 / warrant" : targetRequest.repositoryPath;
+  const greptileEvidence = state.sponsorEvidence.find((evidence) => evidence.provider === "Greptile");
+  const memoryEvidence = state.sponsorEvidence.find((evidence) => evidence.provider === "Claude-Mem" && evidence.stage === "recall");
 
   const progress = useMemo(() => {
     if (state.phase === "verified" || state.phase === "rejected") return 100;
@@ -216,7 +219,7 @@ export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetReq
           <div className="panel-tabs">
             <span className="active">Contract impact</span>
             <span>Evidence {state.artifactCount ? `(${state.artifactCount})` : ""}</span>
-            <div className="review-handoff">Greptile review <b>after repo push</b></div>
+            <div className="review-handoff">Greptile <b>{greptileEvidence?.status === "connected" ? "LIVE" : greptileEvidence ? "NEEDS ATTENTION" : "WAITING"}</b></div>
           </div>
 
           <div className="impact-summary">
@@ -257,6 +260,16 @@ export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetReq
             </article>
             <article className="proof-card agent-proof">
               <small>{state.agentName ?? "OPENAI CODEX"}</small><strong>{state.filesChanged ? `${state.filesChanged} file changed` : "Constrained repair"}</strong><p>{state.agentMessages.at(-1) ?? "Can edit src/gate.ts. Cannot edit the proof."}</p>
+            </article>
+            <article className={greptileEvidence?.status === "connected" ? "proof-card passed-proof" : "proof-card"}>
+              <small>GREPTILE · REPOSITORY REVIEW</small>
+              <strong>{greptileEvidence?.status === "connected" ? "Risk context loaded" : greptileEvidence ? "Review unavailable" : "Waiting for repository"}</strong>
+              <p>{greptileEvidence?.summary ?? "Greptile will inspect cross-file risks before Codex starts."}</p>
+            </article>
+            <article className={memoryEvidence?.status === "connected" ? "proof-card passed-proof" : "proof-card"}>
+              <small>CLAUDE-MEM · WARM BOOT</small>
+              <strong>{memoryEvidence?.status === "connected" ? `${memoryEvidence.itemCount ?? 0} memories recalled` : memoryEvidence ? "Memory unavailable" : "Waiting for recall"}</strong>
+              <p>{memoryEvidence?.summary ?? "Claude-Mem searches prior work before Codex receives the task."}</p>
             </article>
           </div>
 

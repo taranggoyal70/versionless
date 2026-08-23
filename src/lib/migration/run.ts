@@ -8,6 +8,7 @@ import { analyzeRepository } from "./analyze";
 import type { MigrationAgent } from "./agent";
 import type { MigrationTarget } from "./target";
 import type { MigrationEvent } from "./types";
+import { recallClaudeMemory, recordClaudeMemory, reviewWithGreptile, sponsorPromptContext } from "./sponsors";
 import { hashLockedContract, verifyLockedContract, type VerificationOptions } from "./verify";
 
 const execFileAsync = promisify(execFile);
@@ -203,6 +204,18 @@ export async function runMigration({ agent, onEvent, signal, target }: Migration
     if (impacts.length === 0) throw new Error("No contract impacts were detected.");
     impacts.forEach((impact) => onEvent({ type: "impact.found", impact, at: timestamp() }));
 
+    let agentTarget = target;
+    let connectedSponsorEvidence = 0;
+    if (target) {
+      const sponsorContexts = [await recallClaudeMemory(target)];
+      for (const sponsorContext of sponsorContexts) {
+        if (sponsorContext.evidence.status === "connected") connectedSponsorEvidence += 1;
+        onEvent({ type: "sponsor.evidence", evidence: sponsorContext.evidence, at: timestamp() });
+      }
+      const agentContext = sponsorPromptContext(sponsorContexts);
+      if (agentContext) agentTarget = { ...target, agentContext };
+    }
+
     const verificationOptions: VerificationOptions | undefined = target
       ? { lockedPaths: target.lockedPaths, command: target.verificationCommand }
       : undefined;
@@ -222,7 +235,7 @@ export async function runMigration({ agent, onEvent, signal, target }: Migration
       impacts,
       (message) => onEvent({ type: "agent.message", message, at: timestamp() }),
       signal,
-      target,
+      agentTarget,
     );
 
     throwIfAborted(signal);
@@ -233,7 +246,15 @@ export async function runMigration({ agent, onEvent, signal, target }: Migration
     onEvent({ type: "verification.started", at: timestamp() });
     const verification = await verifyLockedContract(verificationRoot, lockedHash, verificationOptions);
     onEvent({ type: "verification.completed", result: verification, at: timestamp() });
-    onEvent({ type: "evidence.ready", artifactCount: 4, at: timestamp() });
+    if (target) {
+      const greptileEvidence = await reviewWithGreptile(verificationRoot, target, runId);
+      if (greptileEvidence.evidence.status === "connected") connectedSponsorEvidence += 1;
+      onEvent({ type: "sponsor.evidence", evidence: greptileEvidence.evidence, at: timestamp() });
+      const memoryEvidence = await recordClaudeMemory(runId, target, verification);
+      if (memoryEvidence.status === "connected") connectedSponsorEvidence += 1;
+      onEvent({ type: "sponsor.evidence", evidence: memoryEvidence, at: timestamp() });
+    }
+    onEvent({ type: "evidence.ready", artifactCount: 4 + connectedSponsorEvidence, at: timestamp() });
 
     const outcome = verification.verified ? "verified" : "rejected";
     onEvent({ type: "run.completed", runId, outcome, at: timestamp() });

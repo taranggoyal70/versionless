@@ -1,4 +1,4 @@
-import type { Impact, MigrationEvent, VerificationResult } from "./types";
+import type { Impact, MigrationEvent, SponsorEvidence, VerificationResult } from "./types";
 
 export type MigrationPhase =
   | "idle"
@@ -24,6 +24,7 @@ export type MigrationState = {
   impacts: Impact[];
   lockedHash: string | null;
   baselineBroken: boolean;
+  sponsorEvidence: SponsorEvidence[];
   agentName: string | null;
   agentMessages: string[];
   diff: string | null;
@@ -52,6 +53,7 @@ export const initialMigrationState: MigrationState = {
   impacts: [],
   lockedHash: null,
   baselineBroken: false,
+  sponsorEvidence: [],
   agentName: null,
   agentMessages: [],
   diff: null,
@@ -85,6 +87,8 @@ export function reduceMigrationEvent(state: MigrationState, event: MigrationEven
       return { ...next, lockedHash: event.hash };
     case "baseline.failed":
       return { ...next, phase: "broken", baselineBroken: true };
+    case "sponsor.evidence":
+      return { ...next, sponsorEvidence: [...state.sponsorEvidence, event.evidence] };
     case "agent.started":
       return { ...next, phase: "migrating", agentName: event.agent };
     case "agent.message":

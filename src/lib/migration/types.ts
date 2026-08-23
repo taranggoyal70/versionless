@@ -31,6 +31,14 @@ export type VerificationResult = {
   durationMs: number;
 };
 
+export type SponsorEvidence = {
+  provider: "Greptile" | "Claude-Mem";
+  stage: "review" | "recall" | "record";
+  status: "connected" | "missing-key" | "unavailable";
+  summary: string;
+  itemCount?: number;
+};
+
 export type MigrationEvent =
   | { type: "run.started"; runId: string; at: string }
   | {
@@ -48,6 +56,7 @@ export type MigrationEvent =
   | { type: "impact.found"; impact: Impact; at: string }
   | { type: "integrity.locked"; hash: string; at: string }
   | { type: "baseline.failed"; summary: string; at: string }
+  | { type: "sponsor.evidence"; evidence: SponsorEvidence; at: string }
   | { type: "agent.started"; agent: "OpenAI Codex" | "Verified replay"; at: string }
   | { type: "agent.message"; message: string; at: string }
   | { type: "patch.ready"; diff: string; filesChanged: number; at: string }

@@ -15,6 +15,7 @@ export type MigrationTarget = {
   fromVersion: string;
   toVersion: string;
   task: string;
+  agentContext?: string;
   allowedFiles: string[];
   lockedPaths: string[];
   verificationCommand: VerificationCommand;

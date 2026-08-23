@@ -24,6 +24,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
     { name: state.proofClaims[2] ?? "Change stayed in scope", input: state.allowedFiles.join(", "), result: "Scope held" },
   ];
   const agentEvents = state.events.filter((event) => event.type === "agent.message").length;
+  const sponsorEvidence = state.sponsorEvidence.filter((evidence) => evidence.status === "connected");
 
   return (
     <section className="dossier" aria-labelledby="dossier-title">
@@ -46,6 +47,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
         <article><small>PROTECTED FILES</small><strong>0</strong><span>changed</span></article>
         <article><small>IMPLEMENTATION</small><strong>{state.filesChanged}</strong><span>file changed</span></article>
         <article><small>CODEX TRACE</small><strong>{agentEvents}</strong><span>agent events</span></article>
+        <article><small>SPONSOR EVIDENCE</small><strong>{sponsorEvidence.length}</strong><span>live integrations</span></article>
       </div>
 
       <section className="hash-proof" aria-labelledby="hash-proof-title">
@@ -90,8 +92,21 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
         </section>
       </div>
 
+      <section className="flow-proof" aria-labelledby="sponsor-proof-title">
+        <div className="section-label"><span>PROOF 04</span><h2 id="sponsor-proof-title">Repository intelligence and memory are real</h2></div>
+        <div className="flow-table">
+          {state.sponsorEvidence.map((evidence, index) => (
+            <div className="flow-row" key={`${evidence.provider}-${evidence.stage}-${index}`}>
+              <span className={evidence.status === "connected" ? "pass-mark" : "risk-badge"}>{evidence.status === "connected" ? "LIVE" : "WARN"}</span>
+              <div><strong>{evidence.provider}</strong><code>{evidence.stage}</code></div>
+              <span>{evidence.summary}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="patch-proof" aria-labelledby="patch-proof-title">
-        <div className="section-label"><span>PROOF 04</span><h2 id="patch-proof-title">The complete patch</h2></div>
+        <div className="section-label"><span>PROOF 05</span><h2 id="patch-proof-title">The complete patch</h2></div>
         <div className="code-window dossier-code">
           <div className="code-bar"><span><i /><i /><i /></span><code>{state.allowedFiles[0]}</code><b>{state.filesChanged} allowed file</b></div>
           <pre className="diff">

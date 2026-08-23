@@ -1,0 +1,8 @@
+{
+  "name": "northstar-checkout",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test locked/receipt-flow.test.mjs"
+  }
+}

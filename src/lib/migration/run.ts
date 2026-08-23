@@ -17,6 +17,14 @@ export type MigrationRunOptions = {
 };
 
 const ALLOWED_IMPLEMENTATION_FILES = new Set(["src/receipt.mjs"]);
+const PROOF_GIT_ARGS = [
+  "-c",
+  "core.fsmonitor=false",
+  "-c",
+  "core.untrackedCache=false",
+  "-c",
+  "core.hooksPath=/dev/null",
+];
 
 function timestamp() {
   return new Date().toISOString();
@@ -39,39 +47,47 @@ async function createWorkspace(runId: string) {
 }
 
 async function patchEvidence(root: string, baselineCommit: string) {
-  const { stdout: baselineChanges } = await execFileAsync("git", ["diff", "--name-only", "-z", baselineCommit, "--"], {
-    cwd: root,
-  });
-  const { stdout: status } = await execFileAsync(
-    "git",
-    ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching"],
-    { cwd: root },
-  );
+  const { stdout: baselineChanges } = await proofGit(root, ["diff", "--name-only", "-z", baselineCommit, "--"]);
+  const { stdout: status } = await proofGit(root, [
+    "status",
+    "--porcelain=v1",
+    "-z",
+    "--untracked-files=all",
+    "--ignored=matching",
+  ]);
   const changedFiles = [...new Set([...pathsFromNullList(baselineChanges), ...changedPathsFromStatus(status)])].sort();
   const outOfScope = changedFiles.filter((file) => !ALLOWED_IMPLEMENTATION_FILES.has(file));
   if (outOfScope.length > 0) {
     throw new Error(`Migration rejected: Codex changed protected path ${outOfScope.join(", ")}.`);
   }
-  const { stdout: stagedChanges } = await execFileAsync("git", ["diff", "--cached", "--name-only", "-z", "--"], {
-    cwd: root,
-  });
+  const { stdout: stagedChanges } = await proofGit(root, ["diff", "--cached", "--name-only", "-z", "--"]);
   const stagedFiles = pathsFromNullList(stagedChanges);
   if (stagedFiles.length > 0) {
     throw new Error(`Migration rejected: Codex staged migration changes ${stagedFiles.join(", ")}.`);
   }
-  const { stdout: currentHead } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+  const { stdout: currentHead } = await proofGit(root, ["rev-parse", "HEAD"]);
   if (currentHead.trim() !== baselineCommit) {
     throw new Error("Migration rejected: Codex changed repository history.");
   }
   const implementationFiles = changedFiles.filter((file) => ALLOWED_IMPLEMENTATION_FILES.has(file));
-  const { stdout: diff } = await execFileAsync(
-    "git",
-    ["diff", "--no-ext-diff", "--unified=3", baselineCommit, "--", ...implementationFiles],
-    { cwd: root },
-  );
+  const { stdout: diff } = await proofGit(root, [
+    "diff",
+    "--no-ext-diff",
+    "--unified=3",
+    baselineCommit,
+    "--",
+    ...implementationFiles,
+  ]);
   const filesChanged = implementationFiles.length;
   if (!diff.trim() || filesChanged === 0) throw new Error("The migration agent produced no implementation patch.");
   return { diff: diff.trim(), filesChanged };
+}
+
+function proofGit(root: string, args: string[]) {
+  return execFileAsync("git", [...PROOF_GIT_ARGS, ...args], {
+    cwd: root,
+    env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1", GIT_OPTIONAL_LOCKS: "0" },
+  });
 }
 
 async function createVerificationWorkspace(runId: string, diff: string) {
@@ -79,7 +95,7 @@ async function createVerificationWorkspace(runId: string, diff: string) {
   const patchPath = path.join(workspace.root, "migration.patch");
   try {
     await writeFile(patchPath, `${diff}\n`);
-    await execFileAsync("git", ["apply", "--whitespace=nowarn", patchPath], { cwd: workspace.root });
+    await proofGit(workspace.root, ["apply", "--whitespace=nowarn", patchPath]);
   } finally {
     await rm(patchPath, { force: true });
   }

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -187,6 +188,79 @@ describe("runMigration", () => {
       });
     } finally {
       await rm(helperPath, { force: true });
+    }
+  });
+
+  it("does not verify a migration that relies on ambient network behavior", async () => {
+    const events: MigrationEvent[] = [];
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      response.end(JSON.stringify({ receiptUrl: `https://pay.stripe.com/receipts/${request.url?.slice(1)}` }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Test server did not bind to a TCP port.");
+    const tamperingAgent: MigrationAgent = {
+      name: "Verified replay",
+      async migrate(root, _impacts, onProgress) {
+        await writeFile(
+          path.join(root, "src", "receipt.mjs"),
+          [
+            "export async function receiptForPayment(stripe, paymentIntentId) {",
+            "  await stripe.charges.list({ payment_intent: paymentIntentId, limit: 1 });",
+            `  const response = await fetch('http://127.0.0.1:${address.port}/' + paymentIntentId);`,
+            "  return (await response.json()).receiptUrl;",
+            "}",
+          ].join("\n"),
+        );
+        onProgress("Used an ambient receipt server.");
+        return { messages: ["ambient network"] };
+      },
+    };
+
+    try {
+      const result = await runMigration({
+        agent: tamperingAgent,
+        onEvent: (event) => events.push(event),
+      });
+
+      expect(result.outcome).toBe("rejected");
+      expect(events.find((event) => event.type === "verification.completed")).toMatchObject({
+        result: { verified: false, integrity: "unchanged" },
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    }
+  });
+
+  it("does not execute repo-local git hooks while collecting proof", async () => {
+    const sentinelPath = path.join(process.cwd(), "demo-workspaces", "fsmonitor-fired");
+    const tamperingAgent: MigrationAgent = {
+      name: "Verified replay",
+      async migrate(root, _impacts, onProgress) {
+        const fsmonitorPath = path.join(root, ".git", "fsmonitor.sh");
+        await writeFile(fsmonitorPath, `#!/bin/sh\necho fired > ${JSON.stringify(sentinelPath)}\nprintf '\\n'\n`);
+        await chmod(fsmonitorPath, 0o755);
+        await execFileAsync("git", ["config", "core.fsmonitor", fsmonitorPath], { cwd: root });
+        await new ReplayMigrationAgent().migrate(root, [], onProgress);
+      },
+    };
+
+    try {
+      const result = await runMigration({
+        agent: tamperingAgent,
+        onEvent: () => undefined,
+      });
+
+      expect(result.outcome).toBe("verified");
+      await expect(readFile(sentinelPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(sentinelPath, { force: true });
     }
   });
 });

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { readdir, readFile, realpath } from "node:fs/promises";
+import { readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -52,10 +52,14 @@ export async function verifyLockedContract(root: string, expectedHash: string): 
     };
   }
 
+  const executionRoot = await realpath(root);
+  const guardPath = path.join(executionRoot, ".versionless-verifier-guard.mjs");
   try {
-    const executionRoot = await realpath(root);
+    await writeFile(guardPath, networkGuardSource());
     const { stdout, stderr } = await execFileAsync(process.execPath, [
       ...nodePermissionArgs(executionRoot),
+      "--import",
+      guardPath,
       "locked/receipt-flow.test.mjs",
     ], {
       cwd: executionRoot,
@@ -83,6 +87,8 @@ export async function verifyLockedContract(root: string, expectedHash: string): 
       testSummary: `${failure.stdout ?? ""}\n${failure.stderr ?? failure.message}`.trim(),
       durationMs: Math.round(performance.now() - startedAt),
     };
+  } finally {
+    await rm(guardPath, { force: true });
   }
 }
 
@@ -94,4 +100,41 @@ function nodePermissionArgs(root: string) {
     return ["--experimental-permission", `--allow-fs-read=${root}`];
   }
   return [];
+}
+
+function networkGuardSource() {
+  return `
+import { syncBuiltinESMExports } from "node:module";
+import dgram from "node:dgram";
+import dns from "node:dns";
+import http from "node:http";
+import http2 from "node:http2";
+import https from "node:https";
+import net from "node:net";
+import tls from "node:tls";
+
+const denied = () => {
+  throw new Error("Verification blocked network access.");
+};
+
+for (const key of ["fetch", "WebSocket", "EventSource"]) {
+  Object.defineProperty(globalThis, key, { value: denied, configurable: true, writable: true });
+}
+
+for (const [module, names] of [
+  [dgram, ["createSocket"]],
+  [dns, ["lookup", "lookupService", "resolve", "resolve4", "resolve6", "resolveAny", "resolveCaa", "resolveCname", "resolveMx", "resolveNaptr", "resolveNs", "resolvePtr", "resolveSoa", "resolveSrv", "resolveTxt", "reverse"]],
+  [http, ["get", "request"]],
+  [http2, ["connect"]],
+  [https, ["get", "request"]],
+  [net, ["connect", "createConnection", "createServer"]],
+  [tls, ["connect", "createServer"]],
+]) {
+  for (const name of names) {
+    if (name in module) module[name] = denied;
+  }
+}
+
+syncBuiltinESMExports();
+`;
 }

@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
@@ -147,5 +148,45 @@ describe("runMigration", () => {
         onEvent: () => undefined,
       }),
     ).rejects.toThrow("changed protected path src/helpers/receipt-url.mjs");
+  });
+
+  it("does not verify a migration that imports ambient helper behavior", async () => {
+    const events: MigrationEvent[] = [];
+    const helperPath = path.join(process.cwd(), "demo-workspaces", "ambient-receipt-url.mjs");
+    const tamperingAgent: MigrationAgent = {
+      name: "Verified replay",
+      async migrate(root, _impacts, onProgress) {
+        await writeFile(
+          helperPath,
+          "export const receiptUrl = (paymentIntentId) => `https://pay.stripe.com/receipts/${paymentIntentId}`;\n",
+        );
+        await writeFile(
+          path.join(root, "src", "receipt.mjs"),
+          [
+            `import { receiptUrl } from ${JSON.stringify(pathToFileURL(helperPath).href)};`,
+            "export async function receiptForPayment(stripe, paymentIntentId) {",
+            "  await stripe.charges.list({ payment_intent: paymentIntentId, limit: 1 });",
+            "  return receiptUrl(paymentIntentId);",
+            "}",
+          ].join("\n"),
+        );
+        onProgress("Wrote an ambient helper.");
+        return { messages: ["ambient helper"] };
+      },
+    };
+
+    try {
+      const result = await runMigration({
+        agent: tamperingAgent,
+        onEvent: (event) => events.push(event),
+      });
+
+      expect(result.outcome).toBe("rejected");
+      expect(events.find((event) => event.type === "verification.completed")).toMatchObject({
+        result: { verified: false, integrity: "unchanged" },
+      });
+    } finally {
+      await rm(helperPath, { force: true });
+    }
   });
 });

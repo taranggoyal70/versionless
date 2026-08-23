@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
@@ -53,8 +53,12 @@ export async function verifyLockedContract(root: string, expectedHash: string): 
   }
 
   try {
-    const { stdout, stderr } = await execFileAsync(process.execPath, ["--test", "locked/receipt-flow.test.mjs"], {
-      cwd: root,
+    const executionRoot = await realpath(root);
+    const { stdout, stderr } = await execFileAsync(process.execPath, [
+      ...nodePermissionArgs(executionRoot),
+      "locked/receipt-flow.test.mjs",
+    ], {
+      cwd: executionRoot,
       env: { CI: "1", NO_COLOR: "1", NODE_ENV: "test" },
       timeout: 45_000,
       maxBuffer: 1024 * 1024,
@@ -80,4 +84,14 @@ export async function verifyLockedContract(root: string, expectedHash: string): 
       durationMs: Math.round(performance.now() - startedAt),
     };
   }
+}
+
+function nodePermissionArgs(root: string) {
+  if (process.allowedNodeEnvironmentFlags.has("--permission")) {
+    return ["--permission", `--allow-fs-read=${root}`];
+  }
+  if (process.allowedNodeEnvironmentFlags.has("--experimental-permission")) {
+    return ["--experimental-permission", `--allow-fs-read=${root}`];
+  }
+  return [];
 }

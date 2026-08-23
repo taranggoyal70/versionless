@@ -14,10 +14,30 @@ let activeRun = false;
 let lastRunFinishedAt = 0;
 
 function requestIsAuthorized(request: Request) {
-  const hostname = new URL(request.url).hostname;
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") return true;
   const token = process.env.VERSIONLESS_DEMO_TOKEN;
-  return Boolean(token && request.headers.get("x-versionless-demo-token") === token);
+  if (token && request.headers.get("x-versionless-demo-token") === token) return true;
+
+  const requestUrl = new URL(request.url);
+  if (!isLocalHost(requestUrl.hostname)) return false;
+  return hasSameOriginEvidence(request, requestUrl);
+}
+
+function isLocalHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
+}
+
+function hasSameOriginEvidence(request: Request, requestUrl: URL) {
+  const secFetchSite = request.headers.get("sec-fetch-site");
+  if (secFetchSite) return secFetchSite === "same-origin" || secFetchSite === "none";
+
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    const originUrl = new URL(origin);
+    return originUrl.protocol === requestUrl.protocol && originUrl.host === requestUrl.host;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: Request) {

@@ -1,5 +1,5 @@
-import { ControlRoom } from "@/components/control-room";
+import { MarketingHome } from "@/components/marketing-home";
 
 export default function Home() {
-  return <ControlRoom />;
+  return <MarketingHome />;
 }

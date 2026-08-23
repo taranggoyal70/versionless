@@ -2,6 +2,7 @@
 
 import { useMemo, useReducer, useState } from "react";
 
+import { VerificationDossier } from "@/components/verification-dossier";
 import { initialMigrationState, reduceMigrationEvent, type MigrationPhase } from "@/lib/migration/state";
 import type { MigrationEvent } from "@/lib/migration/types";
 
@@ -73,6 +74,22 @@ function compactHash(hash: string | null) {
   return `${hash.slice(0, 15)}…${hash.slice(-8)}`;
 }
 
+function ProductNavigation() {
+  return (
+    <nav className="topbar" aria-label="Product navigation">
+      <a className="brand" href="#top" aria-label="Versionless home">
+        <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
+        <span>versionless</span>
+      </a>
+      <div className="repo-pill">
+        <span className="repo-dot" />
+        northstar-commerce / checkout
+      </div>
+      <div className="top-status"><span>Migration runtime</span><strong>local only</strong></div>
+    </nav>
+  );
+}
+
 export function ControlRoom() {
   const [state, dispatch] = useReducer(reduceMigrationEvent, initialMigrationState);
   const [running, setRunning] = useState(false);
@@ -124,19 +141,23 @@ export function ControlRoom() {
   const verified = state.phase === "verified";
   const broken = state.baselineBroken && !verified;
 
+  if (verified && state.verification && state.diff) {
+    return (
+      <main className="shell proof-shell">
+        <ProductNavigation />
+        <VerificationDossier
+          state={state}
+          running={running}
+          onRunAgain={() => startMigration("codex")}
+          onReplay={() => startMigration("replay")}
+        />
+      </main>
+    );
+  }
+
   return (
     <main className="shell">
-      <nav className="topbar" aria-label="Product navigation">
-        <a className="brand" href="#top" aria-label="Versionless home">
-          <span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>
-          <span>versionless</span>
-        </a>
-        <div className="repo-pill">
-          <span className="repo-dot" />
-          northstar-commerce / checkout
-        </div>
-        <div className="top-status"><span>Migration runtime</span><strong>local only</strong></div>
-      </nav>
+      <ProductNavigation />
 
       <section className="hero" id="top">
         <div className="eyebrow"><span>Migration run</span> Stripe API upgrade</div>

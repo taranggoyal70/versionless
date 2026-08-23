@@ -51,16 +51,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Wait two seconds before starting another migration." }, { status: 429 });
   }
 
+  activeRun = true;
   const body = await request.json().catch(() => ({}));
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
+    activeRun = false;
     return Response.json({ error: "Mode must be either codex or replay." }, { status: 400 });
   }
 
   const encoder = new TextEncoder();
   const abortController = new AbortController();
   let closed = false;
-  activeRun = true;
   request.signal.addEventListener("abort", () => {
     closed = true;
     abortController.abort();

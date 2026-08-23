@@ -28,7 +28,7 @@ Rules:
 2. Never modify package.json, anything under locked/, or the provider simulator. The verifier command and locked hash live outside your control.
 3. Keep the patch as small as possible.
 4. Run npm test and stop only when it passes.
-5. Do not commit changes.
+5. Do not stage or commit changes.
 
 Perform the migration now.`;
 }

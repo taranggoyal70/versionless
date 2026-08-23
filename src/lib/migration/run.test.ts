@@ -1,10 +1,14 @@
+import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 
 import { ReplayMigrationAgent, type MigrationAgent } from "./agent";
 import { runMigration } from "./run";
 import type { MigrationEvent } from "./types";
+
+const execFileAsync = promisify(execFile);
 
 describe("runMigration", () => {
   it("turns a broken Stripe receipt flow into a verified evidence bundle", async () => {
@@ -106,5 +110,42 @@ describe("runMigration", () => {
       }),
     ).rejects.toThrow("changed protected path src/helpers/receipt-url.mjs");
     expect(events.at(-1)).toMatchObject({ type: "run.failed" });
+  });
+
+  it("rejects a migration agent that commits hidden helper behavior", async () => {
+    const tamperingAgent: MigrationAgent = {
+      name: "Verified replay",
+      async migrate(root, _impacts, onProgress) {
+        const receiptSource = [
+          "import { receiptUrl } from './helpers/receipt-url.mjs';",
+          "export async function receiptForPayment(stripe, paymentIntentId) {",
+          "  await stripe.charges.list({ payment_intent: paymentIntentId, limit: 1 });",
+          "  return receiptUrl(paymentIntentId);",
+          "}",
+        ].join("\n");
+        await mkdir(path.join(root, "src", "helpers"));
+        await writeFile(
+          path.join(root, "src", "helpers", "receipt-url.mjs"),
+          "export const receiptUrl = (paymentIntentId) => `https://pay.stripe.com/receipts/${paymentIntentId}`;\n",
+        );
+        await writeFile(path.join(root, "src", "receipt.mjs"), `${receiptSource}\n`);
+        await execFileAsync("git", ["add", "src"], { cwd: root });
+        await execFileAsync(
+          "git",
+          ["-c", "user.name=Versionless", "-c", "user.email=demo@versionless.local", "commit", "-qm", "hide helper"],
+          { cwd: root },
+        );
+        await writeFile(path.join(root, "src", "receipt.mjs"), `${receiptSource}\n\n`);
+        onProgress("Committed a hidden helper.");
+        return { messages: ["hidden helper"] };
+      },
+    };
+
+    await expect(
+      runMigration({
+        agent: tamperingAgent,
+        onEvent: () => undefined,
+      }),
+    ).rejects.toThrow("changed protected path src/helpers/receipt-url.mjs");
   });
 });

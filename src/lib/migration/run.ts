@@ -34,29 +34,48 @@ async function createWorkspace(runId: string) {
     ["-c", "user.name=Versionless", "-c", "user.email=demo@versionless.local", "commit", "-qm", "baseline"],
     { cwd: root },
   );
-  return root;
+  const { stdout: baselineCommit } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+  return { root, baselineCommit: baselineCommit.trim() };
 }
 
-async function patchEvidence(root: string) {
+async function patchEvidence(root: string, baselineCommit: string) {
+  const { stdout: baselineChanges } = await execFileAsync("git", ["diff", "--name-only", "-z", baselineCommit, "--"], {
+    cwd: root,
+  });
   const { stdout: status } = await execFileAsync(
     "git",
     ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching"],
     { cwd: root },
   );
-  const changedFiles = changedPathsFromStatus(status);
+  const changedFiles = [...new Set([...pathsFromNullList(baselineChanges), ...changedPathsFromStatus(status)])].sort();
   const outOfScope = changedFiles.filter((file) => !ALLOWED_IMPLEMENTATION_FILES.has(file));
   if (outOfScope.length > 0) {
     throw new Error(`Migration rejected: Codex changed protected path ${outOfScope.join(", ")}.`);
   }
+  const { stdout: stagedChanges } = await execFileAsync("git", ["diff", "--cached", "--name-only", "-z", "--"], {
+    cwd: root,
+  });
+  const stagedFiles = pathsFromNullList(stagedChanges);
+  if (stagedFiles.length > 0) {
+    throw new Error(`Migration rejected: Codex staged migration changes ${stagedFiles.join(", ")}.`);
+  }
+  const { stdout: currentHead } = await execFileAsync("git", ["rev-parse", "HEAD"], { cwd: root });
+  if (currentHead.trim() !== baselineCommit) {
+    throw new Error("Migration rejected: Codex changed repository history.");
+  }
   const implementationFiles = changedFiles.filter((file) => ALLOWED_IMPLEMENTATION_FILES.has(file));
   const { stdout: diff } = await execFileAsync(
     "git",
-    ["diff", "--no-ext-diff", "--unified=3", "HEAD", "--", ...implementationFiles],
+    ["diff", "--no-ext-diff", "--unified=3", baselineCommit, "--", ...implementationFiles],
     { cwd: root },
   );
   const filesChanged = implementationFiles.length;
   if (!diff.trim() || filesChanged === 0) throw new Error("The migration agent produced no implementation patch.");
   return { diff: diff.trim(), filesChanged };
+}
+
+function pathsFromNullList(paths: string) {
+  return paths.split("\0").filter(Boolean);
 }
 
 function changedPathsFromStatus(status: string) {
@@ -87,7 +106,8 @@ export async function runMigration({ agent, onEvent, signal }: MigrationRunOptio
 
   try {
     throwIfAborted(signal);
-    root = await createWorkspace(runId);
+    const workspace = await createWorkspace(runId);
+    root = workspace.root;
     onEvent({ type: "contract.loaded", from: "2022-08-01", to: "2022-11-15", at: timestamp() });
 
     const impacts = await analyzeRepository(root);
@@ -113,7 +133,7 @@ export async function runMigration({ agent, onEvent, signal }: MigrationRunOptio
     );
 
     throwIfAborted(signal);
-    const patch = await patchEvidence(root);
+    const patch = await patchEvidence(root, workspace.baselineCommit);
     onEvent({ type: "patch.ready", ...patch, at: timestamp() });
     onEvent({ type: "verification.started", at: timestamp() });
     const verification = await verifyLockedContract(root, lockedHash);

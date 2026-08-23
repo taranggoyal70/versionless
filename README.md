@@ -33,7 +33,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The migration endpoint is local-only by default. To expose it on a non-local host, set `VERSIONLESS_DEMO_TOKEN` and send the same value in the `x-versionless-demo-token` header.
+Open `http://localhost:3000`. The migration endpoint accepts same-origin localhost requests by default. For non-local hosts or direct API clients, set `VERSIONLESS_DEMO_TOKEN` and send the same value in the `x-versionless-demo-token` header.
 
 ## Verify the repository
 
@@ -41,7 +41,7 @@ Open `http://localhost:3000`. The migration endpoint is local-only by default. T
 npm run check
 ```
 
-This runs strict TypeScript validation, seven behavioral and adversarial tests, and a production Next.js build.
+This runs strict TypeScript validation, behavioral and adversarial tests, and a production Next.js build.
 
 ## Trust boundary
 

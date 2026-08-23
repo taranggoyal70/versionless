@@ -247,7 +247,7 @@ describe("runMigration", () => {
         await writeFile(fsmonitorPath, `#!/bin/sh\necho fired > ${JSON.stringify(sentinelPath)}\nprintf '\\n'\n`);
         await chmod(fsmonitorPath, 0o755);
         await execFileAsync("git", ["config", "core.fsmonitor", fsmonitorPath], { cwd: root });
-        await new ReplayMigrationAgent().migrate(root, [], onProgress);
+        return new ReplayMigrationAgent().migrate(root, [], onProgress);
       },
     };
 

@@ -6,4 +6,4 @@ Implement repository impact analysis, locked-contract hashing, behavioral verifi
 
 ## Comments
 
-Implemented with seven passing behavior and adversarial tests. The locked provider and user flow are hashed together, the verifier command lives outside the writable repository, and out-of-scope edits are rejected.
+Implemented with passing behavior and adversarial tests. The locked provider and user flow are hashed together, the verifier command lives outside the writable repository, and out-of-scope edits are rejected.

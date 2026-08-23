@@ -1,6 +1,6 @@
 # Versionless MVP
 
-Status: ready-for-agent
+Status: complete
 
 ## Problem
 
@@ -16,13 +16,13 @@ A developer responsible for keeping a production Stripe integration current.
 
 ## Demo flow
 
-1. The control room shows a repository on Stripe API `2024-06-20` and a target release `2026-08-15`.
+1. The control room shows a repository on Stripe API `2022-08-01` and a target release `2022-11-15`.
 2. A preflight finds the `PaymentIntent.charges` impact and demonstrates that the target response breaks receipt lookup.
 3. The user starts a migration run.
 4. Codex receives a constrained task against an isolated copy of the customer repository.
-5. The service hashes the locked contract before and after the agent runs.
+5. The service hashes the locked contract before Codex starts and verifies that hash in a clean proof workspace.
 6. The migrated implementation passes the exact locked receipt-flow test.
-7. The UI reveals the patch, verification evidence, and review/memory handoffs.
+7. The UI reveals the patch, verification evidence, and Greptile review handoff.
 
 ## Behavioral seams
 

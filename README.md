@@ -1,32 +1,33 @@
 # Versionless
 
-**Upgrade Stripe without reading a migration guide.**
+**Let coding agents change your code. Make them prove they did not change the rules.**
 
-Versionless finds where a provider release breaks a customer repository, gives OpenAI Codex one constrained repair, and replays the customer’s original behavior against the patch. A migration is only called verified when the locked contract is byte-identical and passes.
+Versionless runs OpenAI Codex inside an isolated copy of a real repository. Before Codex starts, Versionless hashes the tests, generated contracts, lockfile, and build configuration. Codex gets one task and a small list of files it may change. The result is accepted only when the original proof is byte-identical and passes again in a fresh clone.
 
 ## The demo
 
-The included Northstar Checkout fixture relies on `PaymentIntent.charges` from Stripe API `2022-08-01`. Stripe removed that field in `2022-11-15`, so the receipt flow fails under the target contract.
+The live target is [Warrant](https://github.com/taranggoyal70/warrant), a real security product that binds an agent approval to the exact bytes of an action. Its audit records currently accept an unvalidated `approvedAt` value. Versionless adds a locked acceptance test that requires canonical UTC timestamps, then asks Codex to harden the gate.
 
 Click **Repair with Codex** and Versionless will:
 
-1. locate the affected callsite;
-2. hash the locked receipt flow and provider simulator;
-3. reproduce the target-contract failure;
-4. ask Codex to change only `src/receipt.mjs`;
+1. clone Warrant without touching the original checkout;
+2. hash all tests, generated Codex protocol types, lockfiles, and TypeScript contracts;
+3. reproduce four failing timestamp attack cases;
+4. ask Codex to change only `src/gate.ts`;
 5. reject any out-of-scope edit;
-6. replay two receipt paths and assert the exact Stripe call arguments;
-7. show the diff, test output, and matching integrity hashes.
+6. apply the patch to a second clean clone;
+7. run 51 real Warrant tests across six files;
+8. show the complete diff and matching SHA-256 fingerprints.
 
 The **Replay verified run** button is an honest stage fallback. It replays the last Codex-authored patch with a short presentation delay.
 
-## Why this is not Dependabot
+## Why passing tests are not enough
 
-Dependabot changes a dependency version. Versionless changes customer business logic and proves that the same user behavior still works.
+If the same agent can edit the code and its tests, green checks are only a claim. Versionless separates the worker from the proof. The worker can change the allowed implementation. The verifier owns the locked contract and runs it again from clean state.
 
 ## Run locally
 
-Requirements: Node.js 20.9+ and an authenticated `codex` CLI on `PATH`.
+Requirements: Node.js 20.9+, an authenticated `codex` CLI on `PATH`, and a local Warrant checkout with dependencies installed. Set `VERSIONLESS_TARGET_REPO` if Warrant is not at `/Users/tarang/warrant`.
 
 ```bash
 npm install
@@ -46,19 +47,19 @@ This runs strict TypeScript validation, behavioral and adversarial tests, and a 
 ## Trust boundary
 
 - Codex runs in a workspace-write sandbox with a minimal environment.
-- Only `src/receipt.mjs` may change.
-- The provider simulator and behavior tests live under `locked/` and are hashed together.
-- The verifier invokes Node’s test runner directly, so repository scripts cannot replace the proof.
+- Only `src/gate.ts` may change in the Warrant run.
+- Tests, generated protocol types, lockfiles, and TypeScript configuration are hashed together.
+- Dependencies are physically copied into temporary workspaces. No symlink points back to the source repository.
+- The final patch is applied to a second clean clone before verification.
 - The service is single-flight, supports cancellation, and deletes each temporary workspace.
 
 ## Sponsor roles
 
-- **OpenAI Codex** is both the primary builder and the live migration runtime.
-- **Stripe** supplies the real semantic API change used by the demo.
+- **OpenAI Codex** is both the primary builder and the live code-change runtime.
 - **Greptile** is the independent review target after the repository is pushed and enabled. The current UI does not claim a live Greptile review.
 
 Claude-Mem and Modal are not presented as active integrations because their local runtimes were unavailable during this build.
 
 ## Product direction
 
-Stripe is the wedge, not the boundary. An API provider already knows what changed. Versionless turns one provider release into a different, behaviorally verified patch for every customer repository.
+Warrant is the first real target, not a hard-coded boundary. A repository adapter defines a source path, verification command, locked paths, allowed paths, task, and acceptance contract. The same engine can run on another repository without changing the isolation or proof pipeline.

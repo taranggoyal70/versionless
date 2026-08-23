@@ -7,10 +7,10 @@ import { initialMigrationState, reduceMigrationEvent, type MigrationPhase } from
 import type { MigrationEvent } from "@/lib/migration/types";
 
 const steps = [
-  { key: "impact", number: "01", label: "Find the break", detail: "Map the new Stripe contract to this repo." },
-  { key: "lock", number: "02", label: "Lock the user flow", detail: "Hash the receipt test before Codex starts." },
+  { key: "impact", number: "01", label: "Find the gap", detail: "Trace unvalidated audit data into Warrant." },
+  { key: "lock", number: "02", label: "Lock the proof", detail: "Hash 51 tests and generated protocol first." },
   { key: "patch", number: "03", label: "Repair with Codex", detail: "Change only the affected implementation." },
-  { key: "verify", number: "04", label: "Replay the behavior", detail: "Run the same locked test against the patch." },
+  { key: "verify", number: "04", label: "Replay the behavior", detail: "Run the same Warrant suite against the patch." },
   { key: "evidence", number: "05", label: "Ship the proof", detail: "Package the diff, run, and integrity result." },
 ] as const;
 
@@ -83,7 +83,7 @@ function ProductNavigation() {
       </a>
       <div className="repo-pill">
         <span className="repo-dot" />
-        northstar-commerce / checkout
+        taranggoyal70 / warrant
       </div>
       <div className="top-status"><span>Migration runtime</span><strong>local only</strong></div>
     </nav>
@@ -160,11 +160,11 @@ export function ControlRoom() {
       <ProductNavigation />
 
       <section className="hero" id="top">
-        <div className="eyebrow"><span>Migration run</span> Stripe API upgrade</div>
+        <div className="eyebrow"><span>Live repository</span> Warrant security hardening</div>
         <div className="hero-grid">
           <div>
-            <h1>Your Stripe integration<br /><em>is about to break.</em></h1>
-            <p className="lede">Versionless finds the exact callsite, gives Codex one small repair, then proves your original checkout still works.</p>
+            <h1>Can Codex change security code<br /><em>without changing the proof?</em></h1>
+            <p className="lede">Versionless clones the real Warrant repository, locks its full test contract, gives Codex one allowed file, then proves every security invariant still holds.</p>
             <div className="hero-actions">
               <button className="primary-button" onClick={() => startMigration("codex")} disabled={running}>
                 <span>{running ? "Migration running" : verified ? "Run again with Codex" : "Repair with Codex"}</span>
@@ -177,10 +177,10 @@ export function ControlRoom() {
             <p className="fallback-note">Live Codex is the main path. Replay is the on-stage fallback.</p>
           </div>
 
-          <div className={`contract-bridge ${verified ? "is-fixed" : ""}`} aria-label="Stripe version compatibility">
-            <div className="version-card old"><small>CURRENT</small><strong>{state.fromVersion}</strong><span>PaymentIntent.charges</span></div>
+          <div className={`contract-bridge ${verified ? "is-fixed" : ""}`} aria-label="Warrant contract hardening">
+            <div className="version-card old"><small>CURRENT</small><strong>{state.fromVersion}</strong><span>approvedAt accepted raw</span></div>
             <div className="bridge-line"><span className="pulse" /><b>{verified ? "VERIFIED" : "BREAKING"}</b></div>
-            <div className="version-card target"><small>TARGET</small><strong>{state.toVersion}</strong><span>charges.list(…)</span></div>
+            <div className="version-card target"><small>TARGET</small><strong>{state.toVersion}</strong><span>canonical UTC only</span></div>
           </div>
         </div>
       </section>
@@ -220,12 +220,12 @@ export function ControlRoom() {
           </div>
 
           <div className="impact-summary">
-            <div><small>{state.impacts.length ? "BREAKING CHANGE" : "SCENARIO PREVIEW"}</small><h2>Expanded charges removed from PaymentIntent</h2></div>
+            <div><small>{state.impacts.length ? "AUDIT INTEGRITY GAP" : "REAL REPOSITORY PREVIEW"}</small><h2>Unvalidated timestamps enter signed approval records</h2></div>
             <span className={verified ? "resolved-badge" : "risk-badge"}>{verified ? "RESOLVED" : state.impacts.length ? "HIGH IMPACT" : "NOT SCANNED"}</span>
           </div>
 
           <div className="code-window">
-            <div className="code-bar"><span><i /><i /><i /></span><code>src/receipt.mjs</code><b>{state.impacts.length} {state.impacts.length === 1 ? "callsite" : "callsites"}</b></div>
+            <div className="code-bar"><span><i /><i /><i /></span><code>src/gate.ts</code><b>{state.impacts.length} {state.impacts.length === 1 ? "boundary" : "boundaries"}</b></div>
             {state.diff ? (
               <pre className="diff" aria-label="Generated migration diff">
                 {state.diff.split("\n").map((line, index) => (
@@ -234,23 +234,23 @@ export function ControlRoom() {
               </pre>
             ) : (
               <div className="source-preview">
-                <div><span>04</span><code>{"});"}</code></div>
-                <div><span>05</span><code /></div>
-                <div className="danger-line"><span>06</span><code>return <mark>paymentIntent.charges</mark>.data[0]?.receipt_url ?? null;</code><b>REMOVED</b></div>
-                <div><span>07</span><code>{"}"}</code></div>
+                <div><span>97</span><code>{"const { artifact, approver, policy, approvedAt } = input;"}</code></div>
+                <div><span>98</span><code>{"if (!approver.trim()) throw new Error(…);"}</code></div>
+                <div className="danger-line"><span>99</span><code><mark>approvedAt is never validated</mark></code><b>UNTRUSTED</b></div>
+                <div><span>100</span><code>{"return { digest: artifact.digest, approvedAt, … };"}</code></div>
               </div>
             )}
           </div>
 
           <div className="proof-grid">
             <article className={state.baselineBroken ? "proof-card failed-proof" : "proof-card"}>
-              <small>BEFORE MIGRATION</small><strong>{state.baselineBroken ? "Receipt flow failed" : "Waiting for replay"}</strong><p>The target response has no embedded charges.</p>
+              <small>BEFORE CODEX</small><strong>{state.baselineBroken ? "4 attack cases failed" : "Waiting for isolated run"}</strong><p>Malformed timestamps entered the audit record.</p>
             </article>
             <article className={verified ? "proof-card passed-proof" : "proof-card"}>
-              <small>AFTER MIGRATION</small><strong>{verified ? "Receipt flow passed" : "Locked test waiting"}</strong><p>{verified ? `Passed in ${state.verification?.durationMs ?? 0}ms. Test hash matched.` : "The same user behavior will run after Codex."}</p>
+              <small>AFTER CODEX</small><strong>{verified ? "51 security tests passed" : "Locked suite waiting"}</strong><p>{verified ? `Passed in ${state.verification?.durationMs ?? 0}ms. Test hash matched.` : "The same Warrant suite will run after Codex."}</p>
             </article>
             <article className="proof-card agent-proof">
-              <small>{state.agentName ?? "OPENAI CODEX"}</small><strong>{state.filesChanged ? `${state.filesChanged} file changed` : "Constrained repair"}</strong><p>{state.agentMessages.at(-1) ?? "Can edit src/. Cannot edit locked/."}</p>
+              <small>{state.agentName ?? "OPENAI CODEX"}</small><strong>{state.filesChanged ? `${state.filesChanged} file changed` : "Constrained repair"}</strong><p>{state.agentMessages.at(-1) ?? "Can edit src/gate.ts. Cannot edit the proof."}</p>
             </article>
           </div>
 

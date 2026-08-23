@@ -15,9 +15,12 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
   const verification = state.verification;
   if (!verification || !state.diff) return null;
 
+  const testCount = Number(verification.testSummary.match(/Tests\s+(\d+) passed/)?.[1] ?? 0);
+  const testFileCount = Number(verification.testSummary.match(/Test Files\s+(\d+) passed/)?.[1] ?? 0);
   const tests = [
-    { name: "Buyer can open the receipt", input: "pi_order_1042 + pi_order_1043", result: "Receipt URLs matched" },
-    { name: "Payment without a charge", input: "pi_pending", result: "Returned null" },
+    { name: state.proofClaims[0], input: "46 existing + 5 acceptance", result: `${testCount} passed` },
+    { name: state.proofClaims[1], input: "4 malformed timestamp formats", result: "All refused" },
+    { name: "Canonical approval path preserved", input: "2026-08-24T00:00:00.000Z", result: "Accepted" },
   ];
   const agentEvents = state.events.filter((event) => event.type === "agent.message").length;
 
@@ -28,7 +31,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
         <div className="dossier-title-block">
           <div className="dossier-kicker">Verification dossier · {state.runId}</div>
           <h1 id="dossier-title">Safe to merge.</h1>
-          <p>Codex repaired the Stripe integration. The same locked customer behavior passed without changing the proof.</p>
+          <p>Codex hardened Warrant’s security gate. Every original test and the new acceptance contract passed without changing the proof.</p>
         </div>
         <div className="dossier-actions">
           <button className="primary-button" onClick={onRunAgain} disabled={running}>Run fresh with Codex</button>
@@ -38,7 +41,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
       </header>
 
       <div className="proof-scoreboard" aria-label="Verification summary">
-        <article><small>USER FLOWS</small><strong>2 / 2</strong><span>passed</span></article>
+        <article><small>REAL TESTS</small><strong>{testCount} / {testCount}</strong><span>passed across {testFileCount} files</span></article>
         <article><small>PROTECTED FILES</small><strong>0</strong><span>changed</span></article>
         <article><small>IMPLEMENTATION</small><strong>{state.filesChanged}</strong><span>file changed</span></article>
         <article><small>CODEX TRACE</small><strong>{agentEvents}</strong><span>agent events</span></article>
@@ -57,12 +60,12 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
             <code>{bareHash(verification.actualHash)}</code>
           </div>
         </div>
-        <p className="proof-explanation"><span>✓</span> SHA-256 fingerprints match. The provider contract and customer tests are unchanged.</p>
+        <p className="proof-explanation"><span>✓</span> SHA-256 fingerprints match. Warrant’s tests, generated protocol, and build contract are unchanged.</p>
       </section>
 
       <div className="dossier-grid">
         <section className="flow-proof" aria-labelledby="flow-proof-title">
-          <div className="section-label"><span>PROOF 02</span><h2 id="flow-proof-title">The same user flows passed</h2></div>
+          <div className="section-label"><span>PROOF 02</span><h2 id="flow-proof-title">The real Warrant suite passed</h2></div>
           <div className="flow-table">
             {tests.map((test) => (
               <div className="flow-row" key={test.name}>
@@ -73,7 +76,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
             ))}
           </div>
           <div className="runner-result">
-            <span>LOCKED NODE TEST RUNNER</span>
+            <span>LOCKED VITEST RUNNER</span>
             <strong>{verification.durationMs}ms</strong>
             <code>exit {verification.exitCode}</code>
           </div>
@@ -81,16 +84,16 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
 
         <section className="scope-proof" aria-labelledby="scope-proof-title">
           <div className="section-label"><span>PROOF 03</span><h2 id="scope-proof-title">Only the allowed file changed</h2></div>
-          <div className="scope-file"><span>CHANGED</span><code>src/receipt.mjs</code><strong>+1 / −1 strategy</strong></div>
-          <div className="scope-file protected"><span>LOCKED</span><code>locked/receipt-flow.test.mjs</code><strong>unchanged</strong></div>
-          <div className="scope-file protected"><span>LOCKED</span><code>locked/stripe-client.mjs</code><strong>unchanged</strong></div>
+          <div className="scope-file"><span>CHANGED</span><code>{state.allowedFiles[0]}</code><strong>timestamp validation only</strong></div>
+          <div className="scope-file protected"><span>LOCKED</span><code>test/ + acceptance contract</code><strong>unchanged</strong></div>
+          <div className="scope-file protected"><span>LOCKED</span><code>src/protocol/ + lockfile</code><strong>unchanged</strong></div>
         </section>
       </div>
 
       <section className="patch-proof" aria-labelledby="patch-proof-title">
         <div className="section-label"><span>PROOF 04</span><h2 id="patch-proof-title">The complete patch</h2></div>
         <div className="code-window dossier-code">
-          <div className="code-bar"><span><i /><i /><i /></span><code>src/receipt.mjs</code><b>{state.filesChanged} allowed file</b></div>
+          <div className="code-bar"><span><i /><i /><i /></span><code>{state.allowedFiles[0]}</code><b>{state.filesChanged} allowed file</b></div>
           <pre className="diff">
             {state.diff.split("\n").map((line, index) => (
               <span key={`${index}-${line}`} className={line.startsWith("+") && !line.startsWith("+++") ? "added" : line.startsWith("-") && !line.startsWith("---") ? "removed" : "context"}>{line}</span>

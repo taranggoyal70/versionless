@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { Impact } from "./types";
+import type { MigrationTarget } from "./target";
 
 export type AgentResult = {
   messages: string[];
@@ -12,10 +13,35 @@ export type AgentProgress = (message: string) => void;
 
 export interface MigrationAgent {
   readonly name: "OpenAI Codex" | "Verified replay";
-  migrate(root: string, impacts: Impact[], onProgress: AgentProgress, signal?: AbortSignal): Promise<AgentResult>;
+  migrate(
+    root: string,
+    impacts: Impact[],
+    onProgress: AgentProgress,
+    signal?: AbortSignal,
+    target?: MigrationTarget,
+  ): Promise<AgentResult>;
 }
 
-function migrationPrompt(impacts: Impact[]) {
+function migrationPrompt(impacts: Impact[], target?: MigrationTarget) {
+  if (target) {
+    return `You are making a security-sensitive change in ${target.repositoryLabel}.
+
+Task:
+${target.task}
+
+Impacted callsites:
+${impacts.map((impact) => `- ${impact.file}:${impact.line} - ${impact.evidence}`).join("\n")}
+
+Rules:
+1. Modify only ${target.allowedFiles.join(", ")}. Every other changed path will reject the change.
+2. Never modify tests, package metadata, lockfiles, or verification configuration. Their hash is checked outside your control.
+3. Keep the patch as small as possible.
+4. Run ${[target.verificationCommand.executable, ...target.verificationCommand.args].join(" ")} and stop only when it passes.
+5. Do not stage or commit changes.
+
+Perform the change now.`;
+  }
+
   return `You are repairing a Stripe API migration in a small customer repository.
 
 The target API no longer includes PaymentIntent.charges, even when requested through expand. The Stripe client exposes charges.list({ payment_intent, limit }). Preserve the customer-visible behavior: after a successful payment, receiptForPayment must return the first charge's receipt_url.
@@ -53,8 +79,14 @@ function agentMessage(line: string): string | null {
 export class CodexMigrationAgent implements MigrationAgent {
   readonly name = "OpenAI Codex" as const;
 
-  async migrate(root: string, impacts: Impact[], onProgress: AgentProgress, signal?: AbortSignal): Promise<AgentResult> {
-    const prompt = migrationPrompt(impacts);
+  async migrate(
+    root: string,
+    impacts: Impact[],
+    onProgress: AgentProgress,
+    signal?: AbortSignal,
+    target?: MigrationTarget,
+  ): Promise<AgentResult> {
+    const prompt = migrationPrompt(impacts, target);
     const messages: string[] = [];
     onProgress("Codex received the contract change and affected callsite.");
 
@@ -134,7 +166,13 @@ export class CodexMigrationAgent implements MigrationAgent {
 export class ReplayMigrationAgent implements MigrationAgent {
   readonly name = "Verified replay" as const;
 
-  async migrate(root: string, _impacts: Impact[], onProgress: AgentProgress, signal?: AbortSignal): Promise<AgentResult> {
+  async migrate(
+    root: string,
+    _impacts: Impact[],
+    onProgress: AgentProgress,
+    signal?: AbortSignal,
+    target?: MigrationTarget,
+  ): Promise<AgentResult> {
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(resolve, 1_100);
       signal?.addEventListener("abort", () => {
@@ -142,6 +180,18 @@ export class ReplayMigrationAgent implements MigrationAgent {
         reject(new DOMException("Migration canceled by the client.", "AbortError"));
       }, { once: true });
     });
+    if (target?.id === "warrant") {
+      const gatePath = path.join(root, "src", "gate.ts");
+      const source = await readFile(gatePath, "utf8");
+      const anchor = "  if (!policy.trim()) throw new Error(\"A warrant must record which policy required a human\");\n";
+      if (!source.includes(anchor)) throw new Error("Replay refused: the Warrant validation anchor was not present.");
+      const validation = `${anchor}  const parsedApprovedAt = new Date(approvedAt);\n  if (Number.isNaN(parsedApprovedAt.getTime()) || parsedApprovedAt.toISOString() !== approvedAt) {\n    throw new Error(\"A warrant requires approvedAt to be a canonical UTC ISO-8601 instant\");\n  }\n`;
+      await writeFile(gatePath, source.replace(anchor, validation));
+      const message = "Replayed the Codex-authored Warrant timestamp hardening patch.";
+      onProgress(message);
+      return { messages: [message] };
+    }
+
     const receiptPath = path.join(root, "src", "receipt.mjs");
     const source = await readFile(receiptPath, "utf8");
     const migrated = `export async function receiptForPayment(stripe, paymentIntentId) {

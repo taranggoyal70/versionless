@@ -15,6 +15,11 @@ export type MigrationState = {
   runId: string | null;
   fromVersion: string;
   toVersion: string;
+  targetName: string;
+  repositoryLabel: string;
+  task: string;
+  allowedFiles: string[];
+  proofClaims: string[];
   impacts: Impact[];
   lockedHash: string | null;
   baselineBroken: boolean;
@@ -31,8 +36,17 @@ export type MigrationState = {
 export const initialMigrationState: MigrationState = {
   phase: "idle",
   runId: null,
-  fromVersion: "2022-08-01",
-  toVersion: "2022-11-15",
+  fromVersion: "Warrant 0.0.1",
+  toVersion: "Strict audit timestamps",
+  targetName: "Warrant timestamp hardening",
+  repositoryLabel: "taranggoyal70 / warrant",
+  task: "Validate every approval timestamp before it becomes part of an audit record.",
+  allowedFiles: ["src/gate.ts"],
+  proofClaims: [
+    "All original Warrant tests still pass",
+    "Invalid audit timestamps are refused",
+    "Only src/gate.ts changed",
+  ],
   impacts: [],
   lockedHash: null,
   baselineBroken: false,
@@ -52,7 +66,16 @@ export function reduceMigrationEvent(state: MigrationState, event: MigrationEven
     case "run.started":
       return { ...initialMigrationState, phase: "analyzing", runId: event.runId, events: [event] };
     case "contract.loaded":
-      return { ...next, fromVersion: event.from, toVersion: event.to };
+      return {
+        ...next,
+        fromVersion: event.from,
+        toVersion: event.to,
+        targetName: event.targetName ?? state.targetName,
+        repositoryLabel: event.repositoryLabel ?? state.repositoryLabel,
+        task: event.task ?? state.task,
+        allowedFiles: event.allowedFiles ?? state.allowedFiles,
+        proofClaims: event.proofClaims ?? state.proofClaims,
+      };
     case "impact.found":
       return { ...next, impacts: [...state.impacts, event.impact] };
     case "integrity.locked":

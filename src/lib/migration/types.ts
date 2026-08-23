@@ -2,8 +2,8 @@ export type Impact = {
   file: string;
   line: number;
   column: number;
-  kind: "removed-field";
-  symbol: "PaymentIntent.charges";
+  kind: "removed-field" | "unvalidated-input";
+  symbol: string;
   evidence: string;
   guidance: string;
 };
@@ -22,7 +22,17 @@ export type VerificationResult = {
 
 export type MigrationEvent =
   | { type: "run.started"; runId: string; at: string }
-  | { type: "contract.loaded"; from: string; to: string; at: string }
+  | {
+      type: "contract.loaded";
+      from: string;
+      to: string;
+      targetName?: string;
+      repositoryLabel?: string;
+      task?: string;
+      allowedFiles?: string[];
+      proofClaims?: string[];
+      at: string;
+    }
   | { type: "impact.found"; impact: Impact; at: string }
   | { type: "integrity.locked"; hash: string; at: string }
   | { type: "baseline.failed"; summary: string; at: string }

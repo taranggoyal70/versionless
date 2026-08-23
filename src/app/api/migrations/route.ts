@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { CodexMigrationAgent, ReplayMigrationAgent } from "@/lib/migration/agent";
 import { runMigration } from "@/lib/migration/run";
+import { warrantTarget } from "@/lib/migration/target";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
       };
       const agent = parsed.data.mode === "codex" ? new CodexMigrationAgent() : new ReplayMigrationAgent();
 
-      void runMigration({ agent, onEvent: emit, signal: abortController.signal })
+      void runMigration({ agent, onEvent: emit, signal: abortController.signal, target: warrantTarget() })
         .catch(() => undefined)
         .finally(() => {
           activeRun = false;

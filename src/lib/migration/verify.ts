@@ -1,16 +1,36 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { lstat, readdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 
 import type { VerificationResult } from "./types";
+import type { VerificationCommand } from "./target";
 
 const execFileAsync = promisify(execFile);
 
-async function lockedFiles(root: string): Promise<string[]> {
-  const lockedRoot = path.join(root, "locked");
-  return (await filesInDirectory(lockedRoot)).sort();
+export type VerificationOptions = {
+  lockedPaths: string[];
+  command: VerificationCommand;
+};
+
+const DEFAULT_VERIFICATION: VerificationOptions = {
+  lockedPaths: ["locked"],
+  command: { executable: process.execPath, args: ["locked/receipt-flow.test.mjs"] },
+};
+
+async function lockedFiles(root: string, lockedPaths: string[]): Promise<string[]> {
+  const groups = await Promise.all(
+    lockedPaths.map(async (relative) => {
+      const absolute = path.join(root, relative);
+      const stat = await lstat(absolute);
+      if (stat.isSymbolicLink()) throw new Error(`Locked path cannot be a symbolic link: ${relative}`);
+      if (stat.isDirectory()) return filesInDirectory(absolute);
+      if (stat.isFile()) return [absolute];
+      return [];
+    }),
+  );
+  return groups.flat().sort();
 }
 
 async function filesInDirectory(directory: string): Promise<string[]> {
@@ -26,9 +46,9 @@ async function filesInDirectory(directory: string): Promise<string[]> {
   return files.flat();
 }
 
-export async function hashLockedContract(root: string): Promise<string> {
+export async function hashLockedContract(root: string, lockedPaths = DEFAULT_VERIFICATION.lockedPaths): Promise<string> {
   const hash = createHash("sha256");
-  for (const absolute of await lockedFiles(root)) {
+  for (const absolute of await lockedFiles(root, lockedPaths)) {
     hash.update(path.relative(root, absolute));
     hash.update("\0");
     hash.update(await readFile(absolute));
@@ -37,9 +57,13 @@ export async function hashLockedContract(root: string): Promise<string> {
   return `sha256:${hash.digest("hex")}`;
 }
 
-export async function verifyLockedContract(root: string, expectedHash: string): Promise<VerificationResult> {
+export async function verifyLockedContract(
+  root: string,
+  expectedHash: string,
+  options: VerificationOptions = DEFAULT_VERIFICATION,
+): Promise<VerificationResult> {
   const startedAt = performance.now();
-  const actualHash = await hashLockedContract(root);
+  const actualHash = await hashLockedContract(root, options.lockedPaths);
   if (actualHash !== expectedHash) {
     return {
       verified: false,
@@ -56,14 +80,13 @@ export async function verifyLockedContract(root: string, expectedHash: string): 
   const guardPath = path.join(executionRoot, ".versionless-verifier-guard.mjs");
   try {
     await writeFile(guardPath, networkGuardSource());
-    const { stdout, stderr } = await execFileAsync(process.execPath, [
-      ...nodePermissionArgs(executionRoot),
-      "--import",
-      guardPath,
-      "locked/receipt-flow.test.mjs",
-    ], {
+    const isDefaultNodeRunner = options.command.executable === process.execPath;
+    const args = isDefaultNodeRunner
+      ? [...nodePermissionArgs(executionRoot), "--import", guardPath, ...options.command.args]
+      : options.command.args;
+    const { stdout, stderr } = await execFileAsync(options.command.executable, args, {
       cwd: executionRoot,
-      env: { CI: "1", NO_COLOR: "1", NODE_ENV: "test" },
+      env: verificationEnvironment(),
       timeout: 45_000,
       maxBuffer: 1024 * 1024,
     });
@@ -90,6 +113,16 @@ export async function verifyLockedContract(root: string, expectedHash: string): 
   } finally {
     await rm(guardPath, { force: true });
   }
+}
+
+function verificationEnvironment(): NodeJS.ProcessEnv {
+  const allowed = ["PATH", "HOME", "TMPDIR", "LANG", "LC_ALL"];
+  return {
+    ...Object.fromEntries(allowed.flatMap((key) => (process.env[key] ? [[key, process.env[key]]] : []))),
+    CI: "1",
+    NO_COLOR: "1",
+    NODE_ENV: "test",
+  };
 }
 
 function nodePermissionArgs(root: string) {

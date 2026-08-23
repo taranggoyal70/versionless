@@ -1,34 +1,39 @@
 # Three-minute demo
 
-## 0:00-0:25 - The problem
+## 0:00-0:30 - The problem
 
-“Stripe writes one migration guide. Then thousands of developers repeat the same risky change. Versionless replaces the guide with a patch that proves itself.”
+“AI agents can write code fast. But there is one big problem: the same agent can also change the tests. If the code and the proof both changed, a green check means nothing.”
 
-Show the old and target contract cards.
+“This is Warrant, my real security product. It protects agent approvals. Right now its audit timestamp enters the signed record without strict validation.”
 
 ## 0:25-1:40 - The migration
 
 Click **Repair with Codex**.
 
-“Versionless found the exact broken callsite and locked the customer’s receipt flow before Codex started. Codex can change one implementation file. It cannot change the provider, the tests, or the test command.”
+“First, Versionless makes an isolated copy. Then it locks 51 tests, the generated Codex protocol, the lockfile, and the TypeScript contract. Codex can change one file: `src/gate.ts`. It cannot change the proof.”
 
 Let the flight recorder move. If the live run is slow or the room network is unstable, use **Replay verified run** and say it is the recorded fallback.
 
-## 1:40-2:30 - The proof
+## 1:40-2:35 - The proof
 
 Pause on the diff and green result.
 
-“We do not trust the patch because AI says it is done. The same locked behavior now passes for two payments, including the empty-charge case. These two hashes match, so Codex did not rewrite the proof.”
+“Codex found the right fix by itself. It changed one file. Then Versionless took that patch and applied it to a second clean clone.”
 
-## 2:30-3:00 - The product
+Point at the scoreboard and hashes.
 
-“We started with Stripe because payment breakage is concrete. But every API provider has this problem. One release should create one job for the provider, not the same job for every customer.”
+“All 51 real tests passed across six files. Zero protected files changed. And these two hashes match byte for byte. So Codex did not rewrite the rules to make itself look correct.”
 
-Close with: **“Stop shipping migration guides. Start shipping working customers.”**
+## 2:35-3:00 - The product
+
+“Warrant is the first real repo, but it is not hard-coded. For another repo, I give Versionless the test command, protected files, allowed files, and task. The proof engine stays the same.”
+
+Close with: **“Agents can write code. Versionless makes their work provable.”**
 
 ## Q&A anchors
 
-- **Why not Dependabot?** It updates versions. Versionless migrates business logic and proves user behavior.
-- **How is the AI constrained?** One allowed file, minimal environment, sandboxed process, locked provider and tests, direct external verifier.
-- **Who pays?** The API provider, because faster upgrades reduce support load and move customers off old contracts.
-- **Where is Codex?** It built the product and performs the live customer-specific migration.
+- **Why not CI?** CI trusts the repository it receives. Versionless proves the agent did not change the tests or verifier that define success.
+- **How is Codex constrained?** One allowed file, a workspace-write sandbox, locked proof inputs, and verification in a second clean clone.
+- **Can it run on another repo?** Yes. A target adapter supplies the repository, test command, protected paths, allowed paths, task, and acceptance contract.
+- **Where is Codex?** It built Versionless and performs the live Warrant change. The flight recorder shows its real commands and reasoning.
+- **What is real?** The Warrant repository, Codex process, Git diff, 51 tests, fresh-clone verification, and SHA-256 integrity check are all live.

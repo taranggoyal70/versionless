@@ -4,6 +4,9 @@ const isProtectedRoute = createRouteMatcher(["/workspace(.*)", "/api/migrations(
 
 export default clerkMiddleware(async (auth, request) => {
   if (isProtectedRoute(request)) await auth.protect();
+}, {
+  signInUrl: "/sign-in",
+  signUpUrl: "/sign-up",
 });
 
 export const config = {

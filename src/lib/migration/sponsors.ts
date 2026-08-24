@@ -6,7 +6,13 @@ import type { SponsorEvidence, VerificationResult } from "./types";
 
 const execFileAsync = promisify(execFile);
 const CLAUDE_MEM_TIMEOUT_MS = 5_000;
-const GREPTILE_TIMEOUT_MS = 240_000;
+const DEFAULT_GREPTILE_TIMEOUT_MS = 5_000;
+
+function greptileTimeoutMs() {
+  const configured = Number(process.env.GREPTILE_REVIEW_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured < 25) return DEFAULT_GREPTILE_TIMEOUT_MS;
+  return Math.min(configured, 15_000);
+}
 
 type SponsorContext = {
   evidence: SponsorEvidence;
@@ -151,7 +157,7 @@ export async function reviewWithGreptile(
     const { stdout } = await execFileAsync("greptile", ["review", "--json"], {
       cwd: root,
       env: { ...process.env, GREPTILE_API_KEY: apiKey, NO_COLOR: "1" },
-      timeout: GREPTILE_TIMEOUT_MS,
+      timeout: greptileTimeoutMs(),
       maxBuffer: 5 * 1024 * 1024,
     });
     return greptileEvidence(stdout) ?? {

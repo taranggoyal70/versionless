@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { VerificationDossier } from "@/components/verification-dossier";
 import { initialMigrationState, reduceMigrationEvent, type MigrationPhase } from "@/lib/migration/state";
@@ -95,6 +95,7 @@ export function ControlRoom({ targetRequest = { type: "warrant" }, hosted = fals
   const [state, dispatch] = useReducer(reduceMigrationEvent, initialMigrationState);
   const [running, setRunning] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+  const hostedReplayStarted = useRef(false);
   const isWarrant = targetRequest.type === "warrant";
   const repositoryLabel = isWarrant ? "taranggoyal70 / warrant" : targetRequest.repositoryPath;
   const greptileEvidence = state.sponsorEvidence.find((evidence) => evidence.provider === "Greptile");
@@ -142,6 +143,12 @@ export function ControlRoom({ targetRequest = { type: "warrant" }, hosted = fals
       setRunning(false);
     }
   }
+
+  useEffect(() => {
+    if (!hosted || !isWarrant || hostedReplayStarted.current) return;
+    hostedReplayStarted.current = true;
+    void startMigration("replay");
+  }, [hosted, isWarrant]);
 
   const verified = state.phase === "verified";
   const broken = state.baselineBroken && !verified;
@@ -201,10 +208,12 @@ export function ControlRoom({ targetRequest = { type: "warrant" }, hosted = fals
           <ol className="step-list">
             {steps.map((step) => {
               const status = stepState(step.key, state.phase, state.impacts.length > 0);
+              const label = hosted && step.key === "patch" ? "Replay Codex patch" : step.label;
+              const detail = hosted && step.key === "patch" ? "Use the recorded agent-authored implementation." : step.detail;
               return (
                 <li key={step.key} className={status}>
                   <span className="step-number">{status === "complete" ? "✓" : step.number}</span>
-                  <div><strong>{step.label}</strong><p>{step.detail}</p></div>
+                  <div><strong>{label}</strong><p>{detail}</p></div>
                 </li>
               );
             })}
@@ -260,7 +269,7 @@ export function ControlRoom({ targetRequest = { type: "warrant" }, hosted = fals
               <small>AFTER CODEX</small><strong>{verified ? "Locked verification passed" : "Locked suite waiting"}</strong><p>{verified ? `Passed in ${state.verification?.durationMs ?? 0}ms. Test hash matched.` : "The same verification will run after Codex."}</p>
             </article>
             <article className="proof-card agent-proof">
-              <small>{state.agentName ?? "OPENAI CODEX"}</small><strong>{state.filesChanged ? `${state.filesChanged} file changed` : "Constrained repair"}</strong><p>{state.agentMessages.at(-1) ?? "Can edit src/gate.ts. Cannot edit the proof."}</p>
+              <small>{state.agentName ?? (hosted ? "VERIFIED CODEX REPLAY" : "OPENAI CODEX")}</small><strong>{state.filesChanged ? `${state.filesChanged} file changed` : hosted ? "Recorded agent patch" : "Constrained repair"}</strong><p>{state.agentMessages.at(-1) ?? (hosted ? "Replays the Codex-authored patch against the locked proof." : "Can edit src/gate.ts. Cannot edit the proof.")}</p>
             </article>
             <article className={greptileEvidence?.status === "connected" ? "proof-card passed-proof" : "proof-card"}>
               <small>GREPTILE · REPOSITORY REVIEW</small>

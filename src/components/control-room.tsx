@@ -75,7 +75,7 @@ function compactHash(hash: string | null) {
   return `${hash.slice(0, 15)}…${hash.slice(-8)}`;
 }
 
-function ProductNavigation({ repositoryLabel }: { repositoryLabel: string }) {
+function ProductNavigation({ repositoryLabel, hosted }: { repositoryLabel: string; hosted: boolean }) {
   return (
     <nav className="topbar" aria-label="Product navigation">
       <a className="brand" href="#top" aria-label="Versionless home">
@@ -86,12 +86,12 @@ function ProductNavigation({ repositoryLabel }: { repositoryLabel: string }) {
         <span className="repo-dot" />
         {repositoryLabel}
       </div>
-      <div className="top-status"><span>Migration runtime</span><strong>local only</strong></div>
+      <div className="top-status"><span>Migration runtime</span><strong>{hosted ? "hosted replay" : "local live"}</strong></div>
     </nav>
   );
 }
 
-export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetRequest?: MigrationTargetRequest }) {
+export function ControlRoom({ targetRequest = { type: "warrant" }, hosted = false }: { targetRequest?: MigrationTargetRequest; hosted?: boolean }) {
   const [state, dispatch] = useReducer(reduceMigrationEvent, initialMigrationState);
   const [running, setRunning] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
@@ -149,11 +149,12 @@ export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetReq
   if (verified && state.verification && state.diff) {
     return (
       <main className="shell proof-shell">
-        <ProductNavigation repositoryLabel={state.repositoryLabel || repositoryLabel} />
+        <ProductNavigation repositoryLabel={state.repositoryLabel || repositoryLabel} hosted={hosted} />
         <VerificationDossier
           state={state}
           running={running}
-          onRunAgain={() => startMigration("codex")}
+          hosted={hosted}
+          onRunAgain={() => startMigration(hosted ? "replay" : "codex")}
           onReplay={() => startMigration("replay")}
         />
       </main>
@@ -162,7 +163,7 @@ export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetReq
 
   return (
     <main className="shell">
-      <ProductNavigation repositoryLabel={repositoryLabel} />
+      <ProductNavigation repositoryLabel={repositoryLabel} hosted={hosted} />
 
       <section className="hero" id="top">
         <div className="eyebrow"><span>Live repository</span> {isWarrant ? "Warrant security hardening" : "Custom verified change"}</div>
@@ -171,13 +172,13 @@ export function ControlRoom({ targetRequest = { type: "warrant" } }: { targetReq
             <h1>Can Codex change {isWarrant ? "security code" : "this repository"}<br /><em>without changing the proof?</em></h1>
             <p className="lede">{isWarrant ? "Versionless clones the real Warrant repository, locks its full test contract, gives Codex one allowed file, then proves every security invariant still holds." : "Versionless clones your repository, hashes every locked path, gives Codex only the files you selected, then verifies the patch from clean state."}</p>
             <div className="hero-actions">
-              <button className="primary-button" onClick={() => startMigration("codex")} disabled={running}>
-                <span>{running ? "Migration running" : verified ? "Run again with Codex" : "Repair with Codex"}</span>
+              <button className="primary-button" onClick={() => startMigration(hosted ? "replay" : "codex")} disabled={running}>
+                <span>{running ? "Verification running" : hosted ? "Run verified demo" : verified ? "Run again with Codex" : "Repair with Codex"}</span>
                 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11m-4-4 4 4-4 4" /></svg>
               </button>
               {isWarrant && <button className="replay-button" onClick={() => startMigration("replay")} disabled={running}>Replay verified run</button>}
             </div>
-            <p className="fallback-note">{isWarrant ? "Live Codex is the main path. Replay is the on-stage fallback." : "The selected verification command must currently fail for this requested behavior."}</p>
+            <p className="fallback-note">{isWarrant ? (hosted ? "Hosted mode replays the last Codex-authored patch. Live Codex remains available in the local runtime." : "Live Codex is the main path. Replay is the on-stage fallback.") : "The selected verification command must currently fail for this requested behavior."}</p>
           </div>
 
           <div className={`contract-bridge ${verified ? "is-fixed" : ""}`} aria-label="Warrant contract hardening">

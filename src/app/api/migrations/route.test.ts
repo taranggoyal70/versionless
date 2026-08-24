@@ -3,10 +3,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import { POST } from "./route";
 
 const originalDemoToken = process.env.VERSIONLESS_DEMO_TOKEN;
+const originalVercel = process.env.VERCEL;
+const originalTargetRepo = process.env.VERSIONLESS_TARGET_REPO;
 
 afterEach(() => {
   if (originalDemoToken === undefined) delete process.env.VERSIONLESS_DEMO_TOKEN;
   else process.env.VERSIONLESS_DEMO_TOKEN = originalDemoToken;
+  if (originalVercel === undefined) delete process.env.VERCEL;
+  else process.env.VERCEL = originalVercel;
+  if (originalTargetRepo === undefined) delete process.env.VERSIONLESS_TARGET_REPO;
+  else process.env.VERSIONLESS_TARGET_REPO = originalTargetRepo;
 });
 
 describe("POST /api/migrations", () => {
@@ -139,5 +145,30 @@ describe("POST /api/migrations", () => {
     expect(secondResponse.status).toBe(429);
     await expect(secondResponse.json()).resolves.toEqual({ error: "One migration is already running." });
     await expect(firstResponse).resolves.toMatchObject({ status: 400 });
+  });
+
+  it("serves the verified Warrant replay when the hosted runtime has no local repository", async () => {
+    delete process.env.VERSIONLESS_DEMO_TOKEN;
+    process.env.VERCEL = "1";
+    process.env.VERSIONLESS_TARGET_REPO = "/missing/versionless-warrant";
+
+    const response = await POST(
+      new Request("http://localhost:3000/api/migrations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          "sec-fetch-site": "same-origin",
+        },
+        body: JSON.stringify({ mode: "replay", target: { type: "warrant" } }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    expect(events.at(-1)).toMatchObject({ type: "run.completed", outcome: "verified" });
+    expect(events.find((event) => event.type === "verification.completed")).toMatchObject({
+      result: { verified: true, integrity: "unchanged", expectedHash: expect.stringContaining("a2c372") },
+    });
   });
 });

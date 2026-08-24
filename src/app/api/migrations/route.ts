@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auth } from "@clerk/nextjs/server";
 
 import { CodexMigrationAgent, ReplayMigrationAgent } from "@/lib/migration/agent";
+import { runHostedWarrantReplay } from "@/lib/migration/hosted-replay";
 import { runMigration } from "@/lib/migration/run";
 import { localTarget, warrantTarget } from "@/lib/migration/target";
 
@@ -107,7 +108,11 @@ export async function POST(request: Request) {
       const agent = parsed.data.mode === "codex" ? new CodexMigrationAgent() : new ReplayMigrationAgent();
       const target = parsed.data.target.type === "warrant" ? warrantTarget() : localTarget(parsed.data.target);
 
-      void runMigration({ agent, onEvent: emit, signal: abortController.signal, target })
+      const migration = process.env.VERCEL && parsed.data.target.type === "warrant"
+        ? runHostedWarrantReplay(emit, abortController.signal, process.env.NODE_ENV === "test" ? 0 : undefined)
+        : runMigration({ agent, onEvent: emit, signal: abortController.signal, target });
+
+      void migration
         .catch(() => undefined)
         .finally(() => {
           activeRun = false;

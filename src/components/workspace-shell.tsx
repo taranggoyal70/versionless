@@ -10,7 +10,7 @@ function values(text: string) {
   return text.split(",").map((value) => value.trim()).filter(Boolean);
 }
 
-export function WorkspaceShell() {
+export function WorkspaceShell({ hosted = false }: { hosted?: boolean }) {
   const [target, setTarget] = useState<MigrationTargetRequest | null>(null);
 
   function configureLocal(event: FormEvent<HTMLFormElement>) {
@@ -34,7 +34,7 @@ export function WorkspaceShell() {
     return (
       <div className="selected-workspace">
         <div className="target-switcher"><Link href="/">versionless</Link><span>Repository</span><strong>{label}</strong><button onClick={() => setTarget(null)}>Change repository</button></div>
-        <ControlRoom targetRequest={target} />
+        <ControlRoom targetRequest={target} hosted={hosted} />
       </div>
     );
   }

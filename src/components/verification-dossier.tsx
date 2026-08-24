@@ -3,6 +3,7 @@ import type { MigrationState } from "@/lib/migration/state";
 type VerificationDossierProps = {
   state: MigrationState;
   running: boolean;
+  hosted?: boolean;
   onRunAgain: () => void;
   onReplay: () => void;
 };
@@ -11,7 +12,7 @@ function bareHash(hash: string) {
   return hash.replace(/^sha256:/, "");
 }
 
-export function VerificationDossier({ state, running, onRunAgain, onReplay }: VerificationDossierProps) {
+export function VerificationDossier({ state, running, hosted = false, onRunAgain, onReplay }: VerificationDossierProps) {
   const verification = state.verification;
   if (!verification || !state.diff) return null;
 
@@ -36,7 +37,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
           <p>Codex changed {state.repositoryLabel}. The selected verification passed without changing the locked proof or leaving the allowed scope.</p>
         </div>
         <div className="dossier-actions">
-          <button className="primary-button" onClick={onRunAgain} disabled={running}>Run fresh with Codex</button>
+          <button className="primary-button" onClick={onRunAgain} disabled={running}>{hosted ? "Replay verified demo" : "Run fresh with Codex"}</button>
           <button className="replay-button" onClick={onReplay} disabled={running}>Replay proof</button>
           <button className="print-button" onClick={() => window.print()}>Print proof</button>
         </div>
@@ -97,7 +98,7 @@ export function VerificationDossier({ state, running, onRunAgain, onReplay }: Ve
         <div className="flow-table">
           {state.sponsorEvidence.map((evidence, index) => (
             <div className="flow-row" key={`${evidence.provider}-${evidence.stage}-${index}`}>
-              <span className={evidence.status === "connected" ? "pass-mark" : "risk-badge"}>{evidence.status === "connected" ? "LIVE" : "WARN"}</span>
+              <span className={evidence.status === "connected" || evidence.status === "replayed" ? "pass-mark" : "risk-badge"}>{evidence.status === "connected" ? "LIVE" : evidence.status === "replayed" ? "REPLAY" : "WARN"}</span>
               <div><strong>{evidence.provider}</strong><code>{evidence.stage}</code></div>
               <span>{evidence.summary}</span>
             </div>

@@ -34,7 +34,7 @@ export type VerificationResult = {
 export type SponsorEvidence = {
   provider: "Greptile" | "Claude-Mem";
   stage: "review" | "recall" | "record";
-  status: "connected" | "missing-key" | "unavailable";
+  status: "connected" | "replayed" | "missing-key" | "unavailable";
   summary: string;
   itemCount?: number;
 };

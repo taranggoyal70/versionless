@@ -12,11 +12,13 @@ const execFileAsync = promisify(execFile);
 export type VerificationOptions = {
   lockedPaths: string[];
   command: VerificationCommand;
+  maxBuffer?: number;
 };
 
 const DEFAULT_VERIFICATION: VerificationOptions = {
   lockedPaths: ["locked"],
   command: { executable: process.execPath, args: ["locked/receipt-flow.test.mjs"] },
+  maxBuffer: 10 * 1024 * 1024,
 };
 
 async function lockedFiles(root: string, lockedPaths: string[]): Promise<string[]> {
@@ -88,7 +90,7 @@ export async function verifyLockedContract(
       cwd: executionRoot,
       env: verificationEnvironment(),
       timeout: 45_000,
-      maxBuffer: 1024 * 1024,
+      maxBuffer: options.maxBuffer ?? 10 * 1024 * 1024,
     });
     return {
       verified: true,

@@ -107,17 +107,40 @@ export class CodexMigrationAgent implements MigrationAgent {
       let settled = false;
       let stdoutBuffer = "";
       let stderr = "";
+      let terminateCalled = false;
+
+      const forceKill = () => {
+        if (!child.pid) return;
+        try {
+          if (process.platform !== "win32") {
+            process.kill(-child.pid, "SIGKILL");
+          } else {
+            child.kill("SIGKILL");
+          }
+        } catch {
+          // Process already dead, ignore.
+        }
+      };
 
       const terminate = () => {
-        if (child.pid && process.platform !== "win32") {
-          try {
+        if (terminateCalled || !child.pid) return;
+        terminateCalled = true;
+        try {
+          if (process.platform !== "win32") {
             process.kill(-child.pid, "SIGTERM");
-            return;
+          } else {
+            child.kill("SIGTERM");
+          }
+        } catch {
+          // Fall through to direct child kill.
+          try {
+            child.kill("SIGTERM");
           } catch {
-            // Fall through to terminating the direct child.
+            // Ignore.
           }
         }
-        child.kill("SIGTERM");
+        // Fallback to SIGKILL after 2 seconds if process hasn't exited.
+        setTimeout(forceKill, 2_000);
       };
       const finish = (error?: Error) => {
         if (settled) return;

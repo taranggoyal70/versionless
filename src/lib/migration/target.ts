@@ -23,6 +23,7 @@ export type MigrationTarget = {
   supportPaths: string[];
   impacts: Impact[];
   proofClaims: string[];
+  expectedBaselineFailure?: string;
 };
 
 export function warrantTarget(): MigrationTarget {
@@ -71,6 +72,7 @@ export function warrantTarget(): MigrationTarget {
       "Invalid audit timestamps are refused",
       "Only src/gate.ts changed",
     ],
+    expectedBaselineFailure: "canonical UTC ISO-8601",
   };
 }
 
@@ -103,5 +105,6 @@ export function localTarget(request: Extract<MigrationTargetRequest, { type: "lo
       "Every locked path remains byte-identical",
       `Only ${request.allowedFiles.join(", ")} changed`,
     ],
+    expectedBaselineFailure: request.task,
   };
 }

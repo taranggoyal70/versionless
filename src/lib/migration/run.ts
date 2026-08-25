@@ -223,6 +223,9 @@ export async function runMigration({ agent, onEvent, signal, target }: Migration
     onEvent({ type: "integrity.locked", hash: lockedHash, at: timestamp() });
     const baseline = await verifyLockedContract(root, lockedHash, verificationOptions);
     if (baseline.verified) throw new Error("The baseline unexpectedly passed; there is no migration to prove.");
+    if (target?.expectedBaselineFailure && !baseline.testSummary.includes(target.expectedBaselineFailure)) {
+      throw new Error("Baseline rejected: it did not reproduce the expected contract break.");
+    }
     if (!target && !baseline.testSummary.includes("Target Stripe contract forbids retrieving embedded charges")) {
       throw new Error("Baseline rejected: it did not reproduce the expected contract break.");
     }

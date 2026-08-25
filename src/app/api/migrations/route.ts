@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { auth } from "@clerk/nextjs/server";
+import { mkdir, rm, writeFile, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
 import { CodexMigrationAgent, ReplayMigrationAgent } from "@/lib/migration/agent";
 import { runHostedWarrantReplay } from "@/lib/migration/hosted-replay";
@@ -8,6 +11,58 @@ import { localTarget, warrantTarget } from "@/lib/migration/target";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const LOCK_DIR = path.join(tmpdir(), "versionless-migration-locks");
+const LOCK_FILE = path.join(LOCK_DIR, "active.lock");
+const COOLDOWN_FILE = path.join(LOCK_DIR, "cooldown.lock");
+
+let activeRun = false;
+
+async function ensureLockDir() {
+  await mkdir(LOCK_DIR, { recursive: true });
+}
+
+async function acquireLock(): Promise<boolean> {
+  if (activeRun) return false;
+  await ensureLockDir();
+  try {
+    await writeFile(LOCK_FILE, process.pid.toString(), { flag: "wx" });
+    activeRun = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function releaseLock() {
+  activeRun = false;
+  await rm(LOCK_FILE, { force: true });
+}
+
+async function checkCooldown(): Promise<boolean> {
+  try {
+    const stat = await import("node:fs/promises").then((fs) => fs.stat(COOLDOWN_FILE));
+    return Date.now() - stat.mtimeMs < 2_000;
+  } catch {
+    return false;
+  }
+}
+
+async function setCooldown() {
+  await ensureLockDir();
+  await writeFile(COOLDOWN_FILE, Date.now().toString());
+}
+
+async function recoverLockState() {
+  try {
+    await readFile(LOCK_FILE, "utf8");
+    activeRun = true;
+  } catch {
+    activeRun = false;
+  }
+}
+
+await recoverLockState();
 
 const relativePathSchema = z.string().trim().min(1).max(240).refine(
   (value) => !value.startsWith("/") && !value.includes("\0") && !value.split("/").includes("..") && !value.startsWith(".git"),
@@ -31,9 +86,6 @@ const requestSchema = z.object({
   mode: z.enum(["codex", "replay"]).default("codex"),
   target: z.discriminatedUnion("type", [z.object({ type: z.literal("warrant") }), localTargetSchema]).default({ type: "warrant" }),
 });
-
-let activeRun = false;
-let lastRunFinishedAt = 0;
 
 async function requestIsAuthorized(request: Request) {
   const token = process.env.VERSIONLESS_DEMO_TOKEN;
@@ -70,26 +122,29 @@ export async function POST(request: Request) {
   if (activeRun) {
     return Response.json({ error: "One migration is already running." }, { status: 429 });
   }
-  if (Date.now() - lastRunFinishedAt < 2_000) {
+  if (await checkCooldown()) {
     return Response.json({ error: "Wait two seconds before starting another migration." }, { status: 429 });
   }
+  const acquired = await acquireLock();
+  if (!acquired) {
+    return Response.json({ error: "One migration is already running." }, { status: 429 });
+  }
 
-  activeRun = true;
   let body: unknown;
   try {
     body = await parseRequestBody(request);
   } catch {
-    activeRun = false;
+    await releaseLock();
     return Response.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
-    activeRun = false;
+    await releaseLock();
     const modeOnlyFailure = typeof body === "object" && body !== null && "mode" in body && !["codex", "replay"].includes(String(body.mode));
     return Response.json({ error: modeOnlyFailure ? "Mode must be either codex or replay." : "Repository configuration is invalid." }, { status: 400 });
   }
   if (parsed.data.mode === "replay" && parsed.data.target.type !== "warrant") {
-    activeRun = false;
+    await releaseLock();
     return Response.json({ error: "Replay is available only for the proven Warrant run." }, { status: 422 });
   }
 
@@ -115,8 +170,8 @@ export async function POST(request: Request) {
       void migration
         .catch(() => undefined)
         .finally(() => {
-          activeRun = false;
-          lastRunFinishedAt = Date.now();
+          releaseLock();
+          setCooldown();
           if (!closed) {
             closed = true;
             controller.close();

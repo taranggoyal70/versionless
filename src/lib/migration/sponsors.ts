@@ -21,7 +21,14 @@ type SponsorContext = {
 
 function claudeMemBaseUrl() {
   const configuredPort = Number(process.env.CLAUDE_MEM_WORKER_PORT);
-  const uid = typeof process.getuid === "function" ? process.getuid() : 0;
+  let uid = 0;
+  try {
+    if (typeof process.getuid === "function") {
+      uid = process.getuid();
+    }
+  } catch {
+    uid = 0;
+  }
   const port = Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 37_700 + (uid % 100);
   return `http://127.0.0.1:${port}`;
 }

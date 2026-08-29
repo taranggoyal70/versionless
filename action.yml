@@ -1,0 +1,56 @@
+name: Versionless PR Proof
+description: Reject pull requests that alter locked proof or fail the repository's behavioral contract.
+author: Versionless
+
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  base-sha:
+    description: Full commit SHA for the trusted pull request base.
+    required: true
+  head-sha:
+    description: Full commit SHA checked out and proposed by the pull request.
+    required: true
+  config-path:
+    description: Repository-relative policy path loaded from the trusted base commit.
+    required: false
+    default: .versionless.json
+  evidence-path:
+    description: Repository-relative path for the machine-readable evidence bundle.
+    required: false
+    default: .versionless/evidence.json
+
+outputs:
+  status:
+    description: verified or rejected.
+    value: ${{ steps.check.outputs.status }}
+  evidence-path:
+    description: Repository-relative path to the evidence bundle.
+    value: ${{ steps.check.outputs.evidence-path }}
+  locked-hash:
+    description: SHA-256 fingerprint of the locked proof at the pull request head.
+    value: ${{ steps.check.outputs.locked-hash }}
+
+runs:
+  using: composite
+  steps:
+    - name: Verify pull request contract
+      id: check
+      shell: bash
+      env:
+        INPUT_BASE_SHA: ${{ inputs.base-sha }}
+        INPUT_HEAD_SHA: ${{ inputs.head-sha }}
+        INPUT_CONFIG_PATH: ${{ inputs.config-path }}
+        INPUT_EVIDENCE_PATH: ${{ inputs.evidence-path }}
+      run: node "$GITHUB_ACTION_PATH/action/index.mjs"
+
+    - name: Upload Versionless evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: versionless-evidence
+        path: ${{ github.workspace }}/${{ inputs.evidence-path }}
+        if-no-files-found: ignore
+        retention-days: 14

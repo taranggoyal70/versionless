@@ -1,4 +1,5 @@
 const reasonLabels = {
+  CHECKOUT_MISMATCH: "Checked-out commit does not match the requested head",
   LOCKED_PATH_MISSING: "Configured locked proof is missing",
   LOCKED_PATH_CHANGED: "Locked proof changed",
   OUT_OF_SCOPE_CHANGE: "A file changed outside the approved scope",
@@ -24,6 +25,7 @@ export function formatJobSummary(evidence) {
     `| --- | --- |`,
     `| Base commit | \`${short(evidence.baseSha)}\` |`,
     `| Head commit | \`${short(evidence.headSha)}\` |`,
+    `| Checked-out commit | \`${short(evidence.checkoutSha)}\` |`,
     `| Locked proof | ${evidence.integrity.unchanged ? "Unchanged" : "Changed"} |`,
     `| Verification | ${verification} |`,
     "",

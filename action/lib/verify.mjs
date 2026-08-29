@@ -23,22 +23,40 @@ export function runVerification(repository, workingDirectory, command, { timeout
     });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    let settled = false;
+    let timeout;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      resolveResult({
+        ...result,
+        timedOut,
+        stdout,
+        stderr,
+        durationMs: Date.now() - startedAt,
+      });
+    };
     child.stdout.on("data", (chunk) => {
       stdout = appendTail(stdout, chunk.toString());
     });
     child.stderr.on("data", (chunk) => {
       stderr = appendTail(stderr, chunk.toString());
     });
-    const timeout = setTimeout(() => child.kill("SIGTERM"), timeoutMs);
+    timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGTERM");
+    }, timeoutMs);
+    child.on("error", (error) => {
+      stderr = appendTail(stderr, error.message);
+      finish({ passed: false, exitCode: null, signal: null });
+    });
     child.on("close", (exitCode, signal) => {
-      clearTimeout(timeout);
-      resolveResult({
+      finish({
         passed: exitCode === 0,
         exitCode,
         signal,
-        stdout,
-        stderr,
-        durationMs: Date.now() - startedAt,
       });
     });
   });

@@ -17,4 +17,34 @@ describe("runVerification", () => {
     });
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
+
+  it("fails closed when verification exits unsuccessfully", async () => {
+    const result = await runVerification(process.cwd(), ".", {
+      executable: process.execPath,
+      args: ["-e", "process.stderr.write('proof failed'); process.exit(3)"],
+    });
+
+    expect(result).toMatchObject({
+      passed: false,
+      exitCode: 3,
+      timedOut: false,
+      stderr: "proof failed",
+    });
+  });
+
+  it("fails closed when verification exceeds its time limit", async () => {
+    const result = await runVerification(
+      process.cwd(),
+      ".",
+      { executable: process.execPath, args: ["-e", "setTimeout(() => {}, 10_000)"] },
+      { timeoutMs: 20 },
+    );
+
+    expect(result).toMatchObject({
+      passed: false,
+      exitCode: null,
+      signal: "SIGTERM",
+      timedOut: true,
+    });
+  });
 });

@@ -26,6 +26,23 @@ describe("Versionless action entrypoint", () => {
     expect(result.stdout).toContain("Versionless verified this pull request");
     await expect(readFile(`${repository}/.versionless/evidence.json`, "utf8")).resolves.toContain('"status": "verified"');
   });
+
+  it("returns failure and evidence for a rejected pull request", async () => {
+    const repository = await configuredRepository();
+    const baseSha = git(repository, ["rev-parse", "HEAD"]);
+    await writeRepositoryFile(repository, "test/gate.test.ts", "tampered proof\n");
+    const headSha = commitAll(repository, "head");
+
+    const result = spawnSync(process.execPath, [actionEntry], {
+      cwd: repository,
+      encoding: "utf8",
+      env: actionEnvironment(baseSha, headSha),
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Versionless rejected this pull request");
+    await expect(readFile(`${repository}/.versionless/evidence.json`, "utf8")).resolves.toContain('"status": "rejected"');
+  });
 });
 
 async function configuredRepository() {

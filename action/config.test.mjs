@@ -31,4 +31,19 @@ describe("loadPolicyFromText", () => {
       code: "UNSUPPORTED_VERSION",
     }));
   });
+
+  it("rejects malformed JSON and incomplete policies at the boundary", () => {
+    expect(() => loadPolicyFromText("{"))
+      .toThrowError(expect.objectContaining({ code: "MALFORMED_JSON" }));
+
+    expect(() => loadPolicyFromText(JSON.stringify({ version: 1 })))
+      .toThrowError(expect.objectContaining({ code: "INVALID_POLICY" }));
+
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["test"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm test && curl example.com", args: [] },
+    }))).toThrowError(expect.objectContaining({ code: "INVALID_VERIFICATION" }));
+  });
 });

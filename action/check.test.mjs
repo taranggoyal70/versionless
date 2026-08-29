@@ -76,9 +76,29 @@ describe("runPullRequestCheck", () => {
       verification: { skipped: true },
     });
   });
+
+  it("rejects an allowed patch when the locked verification fails", async () => {
+    const repository = await createRepository();
+    const baseSha = await seedRepository(repository, "process.stderr.write('acceptance failed');process.exit(9)");
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
+    const headSha = commitAll(repository, "head");
+
+    const evidence = await runPullRequestCheck({ repository, baseSha, headSha });
+
+    expect(evidence).toMatchObject({
+      status: "rejected",
+      reasons: ["VERIFICATION_FAILED"],
+      pathPolicy: { accepted: true },
+      integrity: { unchanged: true },
+      verification: { passed: false, exitCode: 9, stderr: "acceptance failed" },
+    });
+  });
 });
 
-async function seedRepository(repository) {
+async function seedRepository(
+  repository,
+  verificationScript = "const fs=require('fs');process.exit(fs.readFileSync('src/gate.ts','utf8').includes('true')?0:1)",
+) {
   await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
   await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
   await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
@@ -87,7 +107,7 @@ async function seedRepository(repository) {
     allowedPaths: ["src"],
     verification: {
       executable: process.execPath,
-      args: ["-e", "const fs=require('fs');process.exit(fs.readFileSync('src/gate.ts','utf8').includes('true')?0:1)"],
+      args: ["-e", verificationScript],
     },
   }));
   return commitAll(repository, "base");

@@ -38,6 +38,17 @@ export async function hashLockedPaths(repository, commitSha, lockedPaths) {
   };
 }
 
+export async function readFileAtCommit(repository, commitSha, filePath) {
+  assertObjectId(commitSha);
+  const path = normalizeRepositoryPath(filePath);
+  const { stdout } = await execFileAsync(
+    "git",
+    ["show", `${commitSha}:${path}`],
+    { cwd: repository, encoding: "utf8", maxBuffer: 1024 * 1024 },
+  );
+  return stdout;
+}
+
 function assertObjectId(value) {
   if (typeof value !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(value)) {
     throw new TypeError("Git commit identifiers must be full hexadecimal object IDs.");

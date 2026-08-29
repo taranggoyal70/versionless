@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { hashLockedPaths, listChangedPaths } from "./lib/git.mjs";
+import { hashLockedPaths, listChangedPaths, readFileAtCommit } from "./lib/git.mjs";
 
 const repositories = [];
 
@@ -49,6 +49,18 @@ describe("hashLockedPaths", () => {
     expect(baseline).toMatchObject({ files: ["test/gate.test.ts"] });
     expect(implementationOnly.hash).toBe(baseline.hash);
     expect(changedProof.hash).not.toBe(baseline.hash);
+  });
+});
+
+describe("readFileAtCommit", () => {
+  it("loads trusted configuration from the base commit", async () => {
+    const repository = await createRepository();
+    await write(repository, ".versionless.json", "base policy\n");
+    const baseSha = commit(repository, "base");
+    await write(repository, ".versionless.json", "untrusted head policy\n");
+    commit(repository, "head");
+
+    await expect(readFileAtCommit(repository, baseSha, ".versionless.json")).resolves.toBe("base policy\n");
   });
 });
 

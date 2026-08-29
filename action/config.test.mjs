@@ -62,4 +62,28 @@ describe("loadPolicyFromText", () => {
       verification: { executable: "npm", args: ["test"] },
     }))).toThrowError(expect.objectContaining({ code: "OVERLAPPING_PATH_POLICY" }));
   });
+
+  it("rejects unknown fields and oversized command input", () => {
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["test"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: ["test"] },
+      trustMe: true,
+    }))).toThrowError(expect.objectContaining({ code: "UNKNOWN_FIELD" }));
+
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["test"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: ["test"], shell: true },
+    }))).toThrowError(expect.objectContaining({ code: "UNKNOWN_FIELD" }));
+
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["test"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: Array.from({ length: 33 }, () => "test") },
+    }))).toThrowError(expect.objectContaining({ code: "INVALID_VERIFICATION" }));
+  });
 });

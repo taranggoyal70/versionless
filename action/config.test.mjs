@@ -19,4 +19,16 @@ describe("loadPolicyFromText", () => {
       verification: { executable: "npm", args: ["test"] },
     });
   });
+
+  it("rejects unsupported policy versions with a stable error code", () => {
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 2,
+      lockedPaths: ["test"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: ["test"] },
+    }))).toThrowError(expect.objectContaining({
+      name: "PolicyError",
+      code: "UNSUPPORTED_VERSION",
+    }));
+  });
 });

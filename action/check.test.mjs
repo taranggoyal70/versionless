@@ -8,18 +8,7 @@ afterEach(cleanupRepositories);
 describe("runPullRequestCheck", () => {
   it("verifies an allowed implementation change against unchanged proof", async () => {
     const repository = await createRepository();
-    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
-    await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
-    await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
-      version: 1,
-      lockedPaths: ["test"],
-      allowedPaths: ["src"],
-      verification: {
-        executable: process.execPath,
-        args: ["-e", "const fs=require('fs');process.exit(fs.readFileSync('src/gate.ts','utf8').includes('true')?0:1)"],
-      },
-    }));
-    const baseSha = commitAll(repository, "base");
+    const baseSha = await seedRepository(repository);
 
     await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
     const headSha = commitAll(repository, "head");
@@ -49,4 +38,57 @@ describe("runPullRequestCheck", () => {
     });
     expect(evidence.integrity.baseHash).toBe(evidence.integrity.headHash);
   });
+
+  it("rejects a pull request that changes the locked proof", async () => {
+    const repository = await createRepository();
+    const baseSha = await seedRepository(repository);
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
+    await writeRepositoryFile(repository, "test/gate.test.ts", "weakened proof\n");
+    const headSha = commitAll(repository, "head");
+
+    const evidence = await runPullRequestCheck({ repository, baseSha, headSha });
+
+    expect(evidence).toMatchObject({
+      status: "rejected",
+      reasons: ["LOCKED_PATH_CHANGED", "LOCKED_HASH_CHANGED"],
+      pathPolicy: { lockedChanges: ["test/gate.test.ts"] },
+      integrity: { unchanged: false },
+      verification: { passed: false, skipped: true },
+    });
+  });
+
+  it("rejects configuration tampering and changes outside agent scope", async () => {
+    const repository = await createRepository();
+    const baseSha = await seedRepository(repository);
+    await writeRepositoryFile(repository, ".versionless.json", "{}\n");
+    await writeRepositoryFile(repository, "docs/notes.md", "unexpected file\n");
+    const headSha = commitAll(repository, "head");
+
+    const evidence = await runPullRequestCheck({ repository, baseSha, headSha });
+
+    expect(evidence).toMatchObject({
+      status: "rejected",
+      reasons: ["LOCKED_PATH_CHANGED", "OUT_OF_SCOPE_CHANGE", "LOCKED_HASH_CHANGED"],
+      pathPolicy: {
+        lockedChanges: [".versionless.json"],
+        outOfScopeChanges: ["docs/notes.md"],
+      },
+      verification: { skipped: true },
+    });
+  });
 });
+
+async function seedRepository(repository) {
+  await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
+  await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
+  await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
+    version: 1,
+    lockedPaths: ["test"],
+    allowedPaths: ["src"],
+    verification: {
+      executable: process.execPath,
+      args: ["-e", "const fs=require('fs');process.exit(fs.readFileSync('src/gate.ts','utf8').includes('true')?0:1)"],
+    },
+  }));
+  return commitAll(repository, "base");
+}

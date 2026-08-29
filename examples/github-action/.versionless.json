@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/taranggoyal70/versionless/main/docs/versionless.schema.json",
+  "version": 1,
+  "lockedPaths": [
+    "test",
+    "package-lock.json"
+  ],
+  "allowedPaths": [
+    "src"
+  ],
+  "verification": {
+    "executable": "npm",
+    "args": ["test"]
+  }
+}

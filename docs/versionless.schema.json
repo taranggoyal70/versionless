@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://versionless-navy.vercel.app/schemas/versionless-v1.json",
+  "$id": "https://raw.githubusercontent.com/taranggoyal70/versionless/main/docs/versionless.schema.json",
   "title": "Versionless pull request policy",
   "description": "Defines the proof an agent must preserve before a pull request can be verified.",
   "type": "object",

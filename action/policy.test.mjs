@@ -16,4 +16,17 @@ describe("evaluatePathPolicy", () => {
       outOfScopeChanges: ["docs/notes.md"],
     });
   });
+
+  it("gives a nested locked path precedence over an approved directory", () => {
+    const result = evaluatePathPolicy(
+      ["src/gate.ts", "src/gate.test.ts"],
+      { allowedPaths: ["src"], lockedPaths: ["src/gate.test.ts"] },
+    );
+
+    expect(result).toMatchObject({
+      accepted: false,
+      approvedChanges: ["src/gate.ts"],
+      lockedChanges: ["src/gate.test.ts"],
+    });
+  });
 });

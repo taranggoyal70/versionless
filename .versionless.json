@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/taranggoyal70/versionless/main/docs/versionless.schema.json",
+  "version": 1,
+  "lockedPaths": [
+    "action/check.test.mjs",
+    "action/cli.test.mjs",
+    "action/config.test.mjs",
+    "action/evidence.test.mjs",
+    "action/git.test.mjs",
+    "action/github.test.mjs",
+    "action/main.test.mjs",
+    "action/metadata.test.mjs",
+    "action/paths.test.mjs",
+    "action/policy.test.mjs",
+    "action/report.test.mjs",
+    "action/test",
+    "action/verify.test.mjs",
+    "package-lock.json",
+    "src/app/api/migrations/route.test.ts",
+    "src/lib/migration/analyze.test.ts",
+    "src/lib/migration/hosted-replay.test.ts",
+    "src/lib/migration/run.test.ts",
+    "src/lib/migration/sponsors.test.ts",
+    "src/lib/migration/state.test.ts",
+    "src/lib/migration/verify.test.ts"
+  ],
+  "allowedPaths": [
+    "action",
+    "action.yml",
+    "src"
+  ],
+  "verification": {
+    "executable": "npm",
+    "args": ["run", "check"]
+  }
+}

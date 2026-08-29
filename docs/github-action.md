@@ -1,0 +1,67 @@
+# GitHub PR check
+
+Versionless is an installable GitHub check for pull requests made by humans or coding agents. It answers a narrower question than a code review tool:
+
+> Did this pull request change only the approved implementation, preserve the original proof, and pass that proof against the exact proposed commit?
+
+## Install
+
+1. Copy [`examples/github-action/.versionless.json`](../examples/github-action/.versionless.json) to the root of the repository as `.versionless.json`.
+2. Set `lockedPaths` to tests, fixtures, generated contracts, and lockfiles the pull request must preserve.
+3. Set `allowedPaths` to implementation paths the pull request may change.
+4. Set `verification` to the executable and arguments that prove the behavior.
+5. Copy [`examples/github-action/versionless.yml`](../examples/github-action/versionless.yml) to `.github/workflows/versionless.yml`.
+
+The starter workflow checks out the exact pull request head with full Git history. Both details are required. For a production repository, pin Versionless to a release tag or commit instead of a mutable branch after releases are available.
+
+## Policy
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/taranggoyal70/versionless/main/docs/versionless.schema.json",
+  "version": 1,
+  "lockedPaths": ["test", "package-lock.json"],
+  "allowedPaths": ["src"],
+  "verification": {
+    "executable": "npm",
+    "args": ["test"]
+  }
+}
+```
+
+For a monorepo, add a repository-relative `workingDirectory`. The executable runs directly without a shell, so shell operators such as `&&`, pipes, redirects, and command substitution are not interpreted.
+
+## Decision
+
+A result is `verified` only when all of these are true:
+
+- the checked-out commit exactly matches `head-sha`;
+- policy is loaded from the trusted base commit;
+- every changed file is covered by `allowedPaths`;
+- no locked path or locked Git object changed; and
+- the verification process exits successfully.
+
+Every other result is `rejected`. Stable reason codes identify the failed boundary:
+
+| Code | Meaning |
+| --- | --- |
+| `CHECKOUT_MISMATCH` | The runner is not testing the requested pull request head. |
+| `LOCKED_PATH_MISSING` | A configured proof path does not exist in the base commit. |
+| `LOCKED_PATH_CHANGED` | The pull request directly changed a locked path. |
+| `OUT_OF_SCOPE_CHANGE` | The pull request changed a path outside the approved scope. |
+| `LOCKED_HASH_CHANGED` | The locked Git-object fingerprint differs between base and head. |
+| `VERIFICATION_FAILED` | The original behavioral command did not pass. |
+
+## Evidence and outputs
+
+The action writes a readable GitHub job summary and uploads `versionless-evidence` as a JSON artifact, including on rejection. The JSON records commit SHAs, changed paths, policy, proof hashes, command output tail, duration, and reason codes.
+
+Action outputs are:
+
+- `status`: `verified` or `rejected`;
+- `evidence-path`: path to the generated JSON file; and
+- `locked-hash`: SHA-256 fingerprint of the locked proof at the pull request head.
+
+## Security boundary
+
+Use this action only on `pull_request`. Do not move it to `pull_request_target`, and do not give the job secrets or write permissions. Pull request code and its verification command are untrusted. The starter workflow grants only `contents: read`.

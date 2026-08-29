@@ -7,7 +7,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "action/**/*.test.mjs"],
     exclude: ["demo/**", "demo-workspaces/**", "node_modules/**"],
   },
 });

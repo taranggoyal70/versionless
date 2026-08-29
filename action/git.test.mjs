@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { hashLockedPaths, listChangedPaths, readFileAtCommit } from "./lib/git.mjs";
+import { hashLockedPaths, listChangedPaths, readCurrentHead, readFileAtCommit } from "./lib/git.mjs";
 import { cleanupRepositories, commitAll, createRepository, writeRepositoryFile } from "./test/repository.mjs";
 
 afterEach(async () => {
@@ -56,5 +56,15 @@ describe("readFileAtCommit", () => {
     commitAll(repository, "head");
 
     await expect(readFileAtCommit(repository, baseSha, ".versionless.json")).resolves.toBe("base policy\n");
+  });
+});
+
+describe("readCurrentHead", () => {
+  it("returns the exact commit checked out for verification", async () => {
+    const repository = await createRepository();
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
+    const headSha = commitAll(repository, "head");
+
+    await expect(readCurrentHead(repository)).resolves.toBe(headSha);
   });
 });

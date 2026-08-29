@@ -116,6 +116,24 @@ describe("runPullRequestCheck", () => {
       verification: { skipped: true },
     });
   });
+
+  it("rejects verification when the checkout is not the requested head", async () => {
+    const repository = await createRepository();
+    const baseSha = await seedRepository(repository);
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
+    const headSha = commitAll(repository, "requested head");
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = 'different checkout';\n");
+    const checkoutSha = commitAll(repository, "different checkout");
+
+    const evidence = await runPullRequestCheck({ repository, baseSha, headSha });
+
+    expect(evidence).toMatchObject({
+      status: "rejected",
+      checkoutSha,
+      reasons: ["CHECKOUT_MISMATCH"],
+      verification: { skipped: true },
+    });
+  });
 });
 
 async function seedRepository(

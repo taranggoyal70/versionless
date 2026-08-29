@@ -1,5 +1,5 @@
 import { loadPolicyFromText } from "./config.mjs";
-import { hashLockedPaths, listChangedPaths, readFileAtCommit } from "./git.mjs";
+import { hashLockedPaths, listChangedPaths, readCurrentHead, readFileAtCommit } from "./git.mjs";
 import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 import { evaluatePathPolicy } from "./policy.mjs";
 import { runVerification } from "./verify.mjs";
@@ -14,9 +14,10 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
   };
 
   const changedPaths = await listChangedPaths(repository, baseSha, headSha);
-  const [baseProof, headProof] = await Promise.all([
+  const [baseProof, headProof, checkoutSha] = await Promise.all([
     hashLockedPaths(repository, baseSha, policy.lockedPaths),
     hashLockedPaths(repository, headSha, policy.lockedPaths),
+    readCurrentHead(repository),
   ]);
   const pathPolicy = evaluatePathPolicy(changedPaths, policy);
   const missingPaths = policy.lockedPaths.filter(
@@ -31,6 +32,7 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
     missingPaths,
   };
   const reasons = rejectionReasons(pathPolicy, integrity);
+  if (checkoutSha !== headSha) reasons.unshift("CHECKOUT_MISMATCH");
   const verification = reasons.length === 0
     ? await runVerification(repository, policy.workingDirectory, policy.verification)
     : skippedVerification();
@@ -42,6 +44,7 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
     status: reasons.length === 0 ? "verified" : "rejected",
     baseSha,
     headSha,
+    checkoutSha,
     configPath: normalizedConfigPath,
     changedPaths,
     policy,

@@ -49,6 +49,17 @@ export async function readFileAtCommit(repository, commitSha, filePath) {
   return stdout;
 }
 
+export async function readCurrentHead(repository) {
+  const { stdout } = await execFileAsync(
+    "git",
+    ["rev-parse", "HEAD"],
+    { cwd: repository, encoding: "utf8", maxBuffer: 1024 },
+  );
+  const headSha = stdout.trim();
+  assertObjectId(headSha);
+  return headSha;
+}
+
 function assertObjectId(value) {
   if (typeof value !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(value)) {
     throw new TypeError("Git commit identifiers must be full hexadecimal object IDs.");

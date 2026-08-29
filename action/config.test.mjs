@@ -46,4 +46,20 @@ describe("loadPolicyFromText", () => {
       verification: { executable: "npm test && curl example.com", args: [] },
     }))).toThrowError(expect.objectContaining({ code: "INVALID_VERIFICATION" }));
   });
+
+  it("rejects unsafe or overlapping repository paths", () => {
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["../test"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: ["test"] },
+    }))).toThrowError(expect.objectContaining({ code: "INVALID_PATH" }));
+
+    expect(() => loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["src/contracts"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: ["test"] },
+    }))).toThrowError(expect.objectContaining({ code: "OVERLAPPING_PATH_POLICY" }));
+  });
 });

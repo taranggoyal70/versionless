@@ -1,3 +1,5 @@
+import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
+
 export class PolicyError extends Error {
   constructor(code, message) {
     super(message);
@@ -32,11 +34,22 @@ export function loadPolicyFromText(text) {
     || !policy.verification.args.every((argument) => typeof argument === "string")) {
     throw new PolicyError("INVALID_VERIFICATION", "verification must contain a safe executable and string argument array.");
   }
+  const lockedPaths = normalizePolicyPaths(policy.lockedPaths);
+  const allowedPaths = normalizePolicyPaths(policy.allowedPaths);
+  let workingDirectory;
+  try {
+    workingDirectory = normalizeRepositoryPath(policy.workingDirectory ?? ".");
+  } catch {
+    throw new PolicyError("INVALID_PATH", "Versionless policy paths must stay inside the repository.");
+  }
+  if (lockedPaths.some((locked) => allowedPaths.some((allowed) => isPathWithin(locked, allowed) || isPathWithin(allowed, locked)))) {
+    throw new PolicyError("OVERLAPPING_PATH_POLICY", "Locked and allowed paths cannot overlap.");
+  }
   return {
     version: policy.version,
-    lockedPaths: policy.lockedPaths,
-    allowedPaths: policy.allowedPaths,
-    workingDirectory: policy.workingDirectory ?? ".",
+    lockedPaths,
+    allowedPaths,
+    workingDirectory,
     verification: policy.verification,
   };
 }
@@ -47,4 +60,16 @@ function isObject(value) {
 
 function isNonEmptyStringArray(value) {
   return Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === "string" && item.length > 0);
+}
+
+function normalizePolicyPaths(paths) {
+  try {
+    const normalized = paths.map(normalizeRepositoryPath);
+    if (new Set(normalized).size !== normalized.length) {
+      throw new TypeError("Duplicate repository path.");
+    }
+    return normalized;
+  } catch {
+    throw new PolicyError("INVALID_PATH", "Versionless policy paths must stay inside the repository and be unique.");
+  }
 }

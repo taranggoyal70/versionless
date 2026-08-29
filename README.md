@@ -2,7 +2,31 @@
 
 **Let coding agents change your code. Make them prove they did not change the rules.**
 
-Versionless runs OpenAI Codex inside an isolated copy of a real repository. Before Codex starts, Versionless hashes the tests, generated contracts, lockfile, and build configuration. Codex gets one task and a small list of files it may change. The result is accepted only when the original proof is byte-identical and passes again in a fresh clone.
+Versionless is a proof layer for code written by humans or coding agents. Its installable GitHub Action locks the original tests and contracts, limits which implementation paths may change, and rejects a pull request unless the unchanged proof passes against the exact proposed commit.
+
+The included Codex migration runtime applies the same model locally: before Codex starts, Versionless hashes the tests, generated contracts, lockfile, and build configuration. Codex gets one task and a small list of files it may change. The result is accepted only when the original proof is byte-identical and passes again in a fresh clone.
+
+## Add Versionless to a repository
+
+Copy the [starter policy](examples/github-action/.versionless.json) to `.versionless.json`, then set the locked proof, approved implementation paths, and behavioral command for your repository.
+
+Copy the [starter workflow](examples/github-action/versionless.yml) to `.github/workflows/versionless.yml`. It runs on every pull request with read-only permissions:
+
+```yaml
+- name: Check out the exact pull request head
+  uses: actions/checkout@v4
+  with:
+    ref: ${{ github.event.pull_request.head.sha }}
+    fetch-depth: 0
+
+- name: Verify implementation against locked proof
+  uses: taranggoyal70/versionless@main
+  with:
+    base-sha: ${{ github.event.pull_request.base.sha }}
+    head-sha: ${{ github.event.pull_request.head.sha }}
+```
+
+The check posts a GitHub summary, fails closed on any broken boundary, and uploads a machine-readable evidence artifact even when rejected. See the [installation and security guide](docs/github-action.md) for the complete policy contract.
 
 ## The demo
 
@@ -23,7 +47,7 @@ The **Replay verified run** button is an honest stage fallback. It replays the l
 
 ## Why passing tests are not enough
 
-If the same agent can edit the code and its tests, green checks are only a claim. Versionless separates the worker from the proof. The worker can change the allowed implementation. The verifier owns the locked contract and runs it again from clean state.
+If the same agent can edit the code and its tests, green checks are only a claim. Versionless separates the worker from the proof. The worker can change the allowed implementation. Versionless loads policy from the trusted base commit, proves the locked Git objects did not change, and runs the original contract against the exact pull request head.
 
 ## Run locally
 
@@ -46,6 +70,9 @@ This runs strict TypeScript validation, behavioral and adversarial tests, and a 
 
 ## Trust boundary
 
+- GitHub policy is read from the pull request base commit, never from the proposed head.
+- The PR check requires an exact head checkout, read-only permissions, and the `pull_request` event.
+- Verification commands execute directly without a shell.
 - Codex runs in a workspace-write sandbox with a minimal environment.
 - Only `src/gate.ts` may change in the Warrant run.
 - Tests, generated protocol types, lockfiles, and TypeScript configuration are hashed together.
@@ -62,4 +89,4 @@ Claude-Mem and Modal are not presented as active integrations because their loca
 
 ## Product direction
 
-Warrant is the first real target, not a hard-coded boundary. A repository adapter defines a source path, verification command, locked paths, allowed paths, task, and acceptance contract. The same engine can run on another repository without changing the isolation or proof pipeline.
+Warrant is the first real migration target, not a hard-coded boundary. The GitHub PR check is repository-independent today: each repository defines its verification command, locked paths, allowed paths, and optional monorepo working directory in `.versionless.json`.

@@ -47,7 +47,7 @@ describe("loadPolicyFromText", () => {
     }))).toThrowError(expect.objectContaining({ code: "INVALID_VERIFICATION" }));
   });
 
-  it("rejects unsafe or overlapping repository paths", () => {
+  it("rejects unsafe paths and allowed paths hidden inside locked proof", () => {
     expect(() => loadPolicyFromText(JSON.stringify({
       version: 1,
       lockedPaths: ["../test"],
@@ -57,10 +57,22 @@ describe("loadPolicyFromText", () => {
 
     expect(() => loadPolicyFromText(JSON.stringify({
       version: 1,
-      lockedPaths: ["src/contracts"],
-      allowedPaths: ["src"],
+      lockedPaths: ["src"],
+      allowedPaths: ["src/generated"],
       verification: { executable: "npm", args: ["test"] },
     }))).toThrowError(expect.objectContaining({ code: "OVERLAPPING_PATH_POLICY" }));
+  });
+
+  it("allows narrow locked proof inside a broader implementation scope", () => {
+    const policy = loadPolicyFromText(JSON.stringify({
+      version: 1,
+      lockedPaths: ["src/gate.test.ts"],
+      allowedPaths: ["src"],
+      verification: { executable: "npm", args: ["test"] },
+    }));
+
+    expect(policy.lockedPaths).toEqual(["src/gate.test.ts"]);
+    expect(policy.allowedPaths).toEqual(["src"]);
   });
 
   it("rejects unknown fields and oversized command input", () => {

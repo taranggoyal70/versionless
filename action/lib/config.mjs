@@ -53,8 +53,8 @@ export function loadPolicyFromText(text) {
   } catch {
     throw new PolicyError("INVALID_PATH", "Versionless policy paths must stay inside the repository.");
   }
-  if (lockedPaths.some((locked) => allowedPaths.some((allowed) => isPathWithin(locked, allowed) || isPathWithin(allowed, locked)))) {
-    throw new PolicyError("OVERLAPPING_PATH_POLICY", "Locked and allowed paths cannot overlap.");
+  if (lockedPaths.some((locked) => allowedPaths.some((allowed) => isPathWithin(allowed, locked)))) {
+    throw new PolicyError("OVERLAPPING_PATH_POLICY", "An allowed path cannot be nested inside locked proof.");
   }
   return {
     version: policy.version,

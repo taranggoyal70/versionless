@@ -93,6 +93,29 @@ describe("runPullRequestCheck", () => {
       verification: { passed: false, exitCode: 9, stderr: "acceptance failed" },
     });
   });
+
+  it("rejects a policy whose claimed proof does not exist", async () => {
+    const repository = await createRepository();
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
+    await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
+      version: 1,
+      lockedPaths: ["missing-proof"],
+      allowedPaths: ["src"],
+      verification: { executable: process.execPath, args: ["-e", "process.exit(0)"] },
+    }));
+    const baseSha = commitAll(repository, "base");
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
+    const headSha = commitAll(repository, "head");
+
+    const evidence = await runPullRequestCheck({ repository, baseSha, headSha });
+
+    expect(evidence).toMatchObject({
+      status: "rejected",
+      reasons: ["LOCKED_PATH_MISSING"],
+      integrity: { unchanged: true, missingPaths: ["missing-proof"] },
+      verification: { skipped: true },
+    });
+  });
 });
 
 async function seedRepository(

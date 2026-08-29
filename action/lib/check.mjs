@@ -1,6 +1,6 @@
 import { loadPolicyFromText } from "./config.mjs";
 import { hashLockedPaths, listChangedPaths, readFileAtCommit } from "./git.mjs";
-import { normalizeRepositoryPath } from "./paths.mjs";
+import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 import { evaluatePathPolicy } from "./policy.mjs";
 import { runVerification } from "./verify.mjs";
 
@@ -19,12 +19,16 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
     hashLockedPaths(repository, headSha, policy.lockedPaths),
   ]);
   const pathPolicy = evaluatePathPolicy(changedPaths, policy);
+  const missingPaths = policy.lockedPaths.filter(
+    (lockedPath) => !baseProof.files.some((file) => isPathWithin(file, lockedPath)),
+  );
   const integrity = {
     algorithm: baseProof.algorithm,
     baseHash: baseProof.hash,
     headHash: headProof.hash,
     unchanged: baseProof.hash === headProof.hash,
     files: baseProof.files,
+    missingPaths,
   };
   const reasons = rejectionReasons(pathPolicy, integrity);
   const verification = reasons.length === 0
@@ -50,6 +54,7 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
 
 function rejectionReasons(pathPolicy, integrity) {
   const reasons = [];
+  if (integrity.missingPaths.length > 0) reasons.push("LOCKED_PATH_MISSING");
   if (pathPolicy.lockedChanges.length > 0) reasons.push("LOCKED_PATH_CHANGED");
   if (pathPolicy.outOfScopeChanges.length > 0) reasons.push("OUT_OF_SCOPE_CHANGE");
   if (!integrity.unchanged) reasons.push("LOCKED_HASH_CHANGED");

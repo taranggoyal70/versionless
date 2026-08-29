@@ -24,12 +24,13 @@ async function ensureLockDir() {
 
 async function acquireLock(): Promise<boolean> {
   if (activeRun) return false;
+  activeRun = true;
   await ensureLockDir();
   try {
     await writeFile(LOCK_FILE, process.pid.toString(), { flag: "wx" });
-    activeRun = true;
     return true;
   } catch {
+    activeRun = false;
     return false;
   }
 }
@@ -119,15 +120,13 @@ export async function POST(request: Request) {
   if (!await requestIsAuthorized(request)) {
     return Response.json({ error: "The migration runtime is disabled without a demo token." }, { status: 403 });
   }
-  if (activeRun) {
-    return Response.json({ error: "One migration is already running." }, { status: 429 });
-  }
-  if (await checkCooldown()) {
-    return Response.json({ error: "Wait two seconds before starting another migration." }, { status: 429 });
-  }
   const acquired = await acquireLock();
   if (!acquired) {
     return Response.json({ error: "One migration is already running." }, { status: 429 });
+  }
+  if (await checkCooldown()) {
+    await releaseLock();
+    return Response.json({ error: "Wait two seconds before starting another migration." }, { status: 429 });
   }
 
   let body: unknown;

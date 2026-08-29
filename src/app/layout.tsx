@@ -19,9 +19,10 @@ export const metadata: Metadata = {
     description: "Let coding agents change your code. Make them prove they did not change the rules.",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Versionless - Proof for every agent-written change",
     description: "Let coding agents change your code. Make them prove they did not change the rules.",
+    images: [{ url: "/opengraph-image", alt: "Versionless verification proof for agent-written code" }],
   },
 };
 

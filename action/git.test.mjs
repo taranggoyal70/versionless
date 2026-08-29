@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { listChangedPaths } from "./lib/git.mjs";
+import { hashLockedPaths, listChangedPaths } from "./lib/git.mjs";
 
 const repositories = [];
 
@@ -27,6 +27,28 @@ describe("listChangedPaths", () => {
       "docs/readme.md",
       "src/gate.ts",
     ]);
+  });
+});
+
+describe("hashLockedPaths", () => {
+  it("fingerprints the locked Git objects at each commit", async () => {
+    const repository = await createRepository();
+    await write(repository, "src/gate.ts", "export const gate = false;\n");
+    await write(repository, "test/gate.test.ts", "locked proof\n");
+    const baseSha = commit(repository, "base");
+
+    await write(repository, "src/gate.ts", "export const gate = true;\n");
+    const implementationSha = commit(repository, "implementation only");
+    await write(repository, "test/gate.test.ts", "weakened proof\n");
+    const proofSha = commit(repository, "proof changed");
+
+    const baseline = await hashLockedPaths(repository, baseSha, ["test"]);
+    const implementationOnly = await hashLockedPaths(repository, implementationSha, ["test"]);
+    const changedProof = await hashLockedPaths(repository, proofSha, ["test"]);
+
+    expect(baseline).toMatchObject({ files: ["test/gate.test.ts"] });
+    expect(implementationOnly.hash).toBe(baseline.hash);
+    expect(changedProof.hash).not.toBe(baseline.hash);
   });
 });
 

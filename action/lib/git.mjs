@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 
 import { normalizeRepositoryPath } from "./paths.mjs";
@@ -14,6 +15,27 @@ export async function listChangedPaths(repository, baseSha, headSha) {
     { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
   );
   return [...new Set(stdout.split("\0").filter(Boolean).map(normalizeRepositoryPath))].sort();
+}
+
+export async function hashLockedPaths(repository, commitSha, lockedPaths) {
+  assertObjectId(commitSha);
+  const paths = [...new Set(lockedPaths.map(normalizeRepositoryPath))].sort();
+  const { stdout } = await execFileAsync(
+    "git",
+    ["-c", "core.quotepath=false", "ls-tree", "-r", "-z", "--full-tree", commitSha, "--", ...paths],
+    { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+  );
+  const files = stdout
+    .split("\0")
+    .filter(Boolean)
+    .map((entry) => entry.slice(entry.indexOf("\t") + 1))
+    .map(normalizeRepositoryPath)
+    .sort();
+  return {
+    algorithm: "sha256",
+    hash: createHash("sha256").update(stdout).digest("hex"),
+    files,
+  };
 }
 
 function assertObjectId(value) {

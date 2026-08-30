@@ -47,4 +47,23 @@ describe("runVerification", () => {
       timedOut: true,
     });
   });
+
+  it("force-kills a verification process that ignores graceful termination", async () => {
+    const result = await runVerification(
+      process.cwd(),
+      ".",
+      {
+        executable: process.execPath,
+        args: ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],
+      },
+      { timeoutMs: 100, killGraceMs: 20 },
+    );
+
+    expect(result).toMatchObject({
+      passed: false,
+      exitCode: null,
+      signal: "SIGKILL",
+      timedOut: true,
+    });
+  });
 });

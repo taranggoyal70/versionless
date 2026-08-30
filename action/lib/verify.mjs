@@ -5,7 +5,12 @@ import { normalizeRepositoryPath } from "./paths.mjs";
 
 const MAX_CAPTURE_BYTES = 64 * 1024;
 
-export function runVerification(repository, workingDirectory, command, { timeoutMs = 10 * 60 * 1000 } = {}) {
+export function runVerification(
+  repository,
+  workingDirectory,
+  command,
+  { timeoutMs = 10 * 60 * 1000, killGraceMs = 5_000 } = {},
+) {
   const repositoryRoot = resolve(repository);
   const normalizedWorkingDirectory = normalizeRepositoryPath(workingDirectory);
   const cwd = normalizedWorkingDirectory === "." ? repositoryRoot : resolve(repositoryRoot, normalizedWorkingDirectory);
@@ -26,10 +31,14 @@ export function runVerification(repository, workingDirectory, command, { timeout
     let timedOut = false;
     let settled = false;
     let timeout;
+    let killTimeout;
+    let settlementTimeout;
     const finish = (result) => {
       if (settled) return;
       settled = true;
       if (timeout) clearTimeout(timeout);
+      if (killTimeout) clearTimeout(killTimeout);
+      if (settlementTimeout) clearTimeout(settlementTimeout);
       resolveResult({
         ...result,
         timedOut,
@@ -47,6 +56,13 @@ export function runVerification(repository, workingDirectory, command, { timeout
     timeout = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
+      killTimeout = setTimeout(() => {
+        if (settled) return;
+        child.kill("SIGKILL");
+        settlementTimeout = setTimeout(() => {
+          finish({ passed: false, exitCode: null, signal: "SIGKILL" });
+        }, killGraceMs);
+      }, killGraceMs);
     }, timeoutMs);
     child.on("error", (error) => {
       stderr = appendTail(stderr, error.message);

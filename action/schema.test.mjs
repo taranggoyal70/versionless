@@ -1,10 +1,12 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { EXECUTABLE_PATTERN, POLICY_LIMITS } from "./lib/config.mjs";
 
 const schemaPath = fileURLToPath(new URL("../docs/versionless.schema.json", import.meta.url));
+const policyPath = fileURLToPath(new URL("../.versionless.json", import.meta.url));
+const actionDirectory = fileURLToPath(new URL("./", import.meta.url));
 
 describe("published policy schema", () => {
   it("stays aligned with runtime policy limits", async () => {
@@ -25,5 +27,15 @@ describe("published policy schema", () => {
 
     expect(schema.additionalProperties).toBe(false);
     expect(schema.properties.verification.additionalProperties).toBe(false);
+  });
+
+  it("locks every Action contract test in Versionless's own policy", async () => {
+    const policy = JSON.parse(await readFile(policyPath, "utf8"));
+    const actionTests = (await readdir(actionDirectory))
+      .filter((file) => file.endsWith(".test.mjs"))
+      .map((file) => `action/${file}`)
+      .sort();
+
+    expect(actionTests.filter((testPath) => !policy.lockedPaths.includes(testPath))).toEqual([]);
   });
 });

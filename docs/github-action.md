@@ -66,9 +66,34 @@ Rerunning the action safely replaces its prior untracked evidence file. A tracke
 Action outputs are:
 
 - `status`: `verified` or `rejected`;
-- `evidence-path`: path to the generated JSON file; and
+- `evidence-path`: path to the generated JSON file;
 - `locked-hash`: SHA-256 fingerprint of the locked contract at the pull request head; and
 - `reason-codes`: comma-separated rejection reasons, empty for a verified pull request.
+
+Give the action step an `id` to use these outputs in later steps. Because rejection fails the action, downstream reporting should use `if: always()`:
+
+```yaml
+- name: Verify implementation against locked contract
+  id: versionless
+  uses: taranggoyal70/versionless@main
+  with:
+    base-sha: ${{ github.event.pull_request.base.sha }}
+    head-sha: ${{ github.event.pull_request.head.sha }}
+
+- name: Report Versionless decision
+  if: always() && steps.versionless.outputs.status == 'rejected'
+  env:
+    VERSIONLESS_REASONS: ${{ steps.versionless.outputs.reason-codes }}
+  run: echo "Versionless rejected the pull request:$VERSIONLESS_REASONS"
+```
+
+## Troubleshooting
+
+- `CHECKOUT_MISMATCH`: check out `github.event.pull_request.head.sha` and keep `fetch-depth: 0`.
+- `WORKTREE_DIRTY`: run generators before committing, or ignore generated dependency and build directories. A tracked mutation is always reported.
+- `CHECK_FAILED`: confirm `.versionless.json` exists in the base commit, then read the job summary and evidence error code.
+- `VERIFICATION_FAILED`: run the configured executable and argument list locally from `workingDirectory`.
+- Non-JavaScript repository: replace the Node.js setup and `npm ci` starter steps with the repository's normal dependency installation. The Versionless action itself needs no package installation.
 
 ## Security boundary
 

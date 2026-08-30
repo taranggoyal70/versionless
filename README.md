@@ -20,6 +20,7 @@ Copy the [starter workflow](examples/github-action/versionless.yml) to `.github/
     fetch-depth: 0
 
 - name: Verify implementation against locked contract
+  id: versionless
   uses: taranggoyal70/versionless@main
   with:
     base-sha: ${{ github.event.pull_request.base.sha }}

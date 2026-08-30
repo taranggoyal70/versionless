@@ -29,15 +29,15 @@ describe("published evidence schema", () => {
     expect(schema.properties.schema.const).toBe(evidence.schema);
     expect([...schema.properties.reasons.items.enum].sort())
       .toEqual(Object.values(RejectionReason).sort());
-    expect(expectMissingRequiredFields(schema, evidence)).toEqual([]);
-    expect(expectMissingRequiredFields(schema.$defs.workspace, evidence.workspace)).toEqual([]);
-    expect(expectMissingRequiredFields(schema.$defs.policy, evidence.policy)).toEqual([]);
-    expect(expectMissingRequiredFields(schema.$defs.pathPolicy, evidence.pathPolicy)).toEqual([]);
-    expect(expectMissingRequiredFields(schema.$defs.integrity, evidence.integrity)).toEqual([]);
-    expect(expectMissingRequiredFields(schema.$defs.verification, evidence.verification)).toEqual([]);
+    expect(missingRequiredFields(schema, evidence)).toEqual([]);
+    expect(missingRequiredFields(schema.$defs.workspace, evidence.workspace)).toEqual([]);
+    expect(missingRequiredFields(schema.$defs.policy, evidence.policy)).toEqual([]);
+    expect(missingRequiredFields(schema.$defs.pathPolicy, evidence.pathPolicy)).toEqual([]);
+    expect(missingRequiredFields(schema.$defs.integrity, evidence.integrity)).toEqual([]);
+    expect(missingRequiredFields(schema.$defs.verification, evidence.verification)).toEqual([]);
   });
 });
 
-function expectMissingRequiredFields(schema, value) {
+function missingRequiredFields(schema, value) {
   return schema.required.filter((field) => !Object.hasOwn(value, field));
 }

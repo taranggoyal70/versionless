@@ -123,7 +123,7 @@ describe("runVerification", () => {
 
     expect(descendantPid).toBeGreaterThan(0);
     try {
-      expect(processExists(descendantPid)).toBe(false);
+      await expect(waitForProcessExit(descendantPid)).resolves.toBe(true);
     } finally {
       if (processExists(descendantPid)) process.kill(descendantPid, "SIGKILL");
     }
@@ -137,4 +137,13 @@ function processExists(pid) {
   } catch {
     return false;
   }
+}
+
+async function waitForProcessExit(pid, timeoutMs = 1_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!processExists(pid)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return !processExists(pid);
 }

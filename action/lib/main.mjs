@@ -3,6 +3,7 @@ import { writeEvidence } from "./evidence.mjs";
 import { writeActionOutputs, writeStepSummary } from "./github.mjs";
 import { formatJobSummary } from "./report.mjs";
 import { RejectionReason } from "./reasons.mjs";
+import { createSkippedVerification } from "./verification-result.mjs";
 
 export class ActionInputError extends Error {
   constructor(message) {
@@ -78,18 +79,7 @@ function failedCheckEvidence({ baseSha, headSha, configPath }, error) {
       files: [],
       missingPaths: [],
     },
-    verification: {
-      passed: false,
-      skipped: true,
-      exitCode: null,
-      signal: null,
-      timedOut: false,
-      stdout: "",
-      stderr: "",
-      stdoutTruncated: false,
-      stderrTruncated: false,
-      durationMs: 0,
-    },
+    verification: createSkippedVerification(),
     reasons: [RejectionReason.CHECK_FAILED],
     error: { code, message },
   };

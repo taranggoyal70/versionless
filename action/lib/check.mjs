@@ -10,6 +10,7 @@ import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 import { evaluatePathPolicy } from "./policy.mjs";
 import { RejectionReason } from "./reasons.mjs";
 import { runVerification } from "./verify.mjs";
+import { createSkippedVerification } from "./verification-result.mjs";
 
 export async function runPullRequestCheck({
   repository,
@@ -51,7 +52,7 @@ export async function runPullRequestCheck({
   if (checkoutSha !== headSha) reasons.unshift(RejectionReason.CHECKOUT_MISMATCH);
   const verification = reasons.length === 0
     ? await runVerification(repository, policy.workingDirectory, policy.verification)
-    : skippedVerification();
+    : createSkippedVerification();
   if (!verification.passed && !verification.skipped) reasons.push(RejectionReason.VERIFICATION_FAILED);
 
   return {
@@ -79,19 +80,4 @@ function rejectionReasons(pathPolicy, integrity) {
   if (pathPolicy.outOfScopeChanges.length > 0) reasons.push(RejectionReason.OUT_OF_SCOPE_CHANGE);
   if (!integrity.unchanged) reasons.push(RejectionReason.LOCKED_HASH_CHANGED);
   return reasons;
-}
-
-function skippedVerification() {
-  return {
-    passed: false,
-    skipped: true,
-    exitCode: null,
-    signal: null,
-    timedOut: false,
-    stdout: "",
-    stderr: "",
-    stdoutTruncated: false,
-    stderrTruncated: false,
-    durationMs: 0,
-  };
 }

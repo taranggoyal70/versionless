@@ -20,6 +20,7 @@ describe("runVerification", () => {
 
     expect(result).toMatchObject({
       passed: true,
+      skipped: false,
       exitCode: 0,
       stdout: "proof passed",
       stderr: "",

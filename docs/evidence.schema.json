@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/taranggoyal70/versionless/main/docs/evidence.schema.json",
+  "title": "Versionless pull request evidence",
+  "description": "Machine-readable result produced by the Versionless GitHub PR check.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "createdAt",
+    "status",
+    "baseSha",
+    "headSha",
+    "checkoutSha",
+    "workspace",
+    "configPath",
+    "changedPaths",
+    "policy",
+    "pathPolicy",
+    "integrity",
+    "verification",
+    "reasons"
+  ],
+  "properties": {
+    "schema": { "const": "versionless.pr_check.v1" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["verified", "rejected"] },
+    "baseSha": { "type": "string" },
+    "headSha": { "type": "string" },
+    "checkoutSha": { "type": ["string", "null"] },
+    "workspace": { "$ref": "#/$defs/workspace" },
+    "configPath": { "type": "string" },
+    "changedPaths": { "$ref": "#/$defs/pathList" },
+    "policy": {
+      "anyOf": [
+        { "$ref": "#/$defs/policy" },
+        { "type": "null" }
+      ]
+    },
+    "pathPolicy": { "$ref": "#/$defs/pathPolicy" },
+    "integrity": { "$ref": "#/$defs/integrity" },
+    "verification": { "$ref": "#/$defs/verification" },
+    "reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CHECK_FAILED",
+          "CHECKOUT_MISMATCH",
+          "WORKTREE_DIRTY",
+          "LOCKED_PATH_MISSING",
+          "LOCKED_PATH_CHANGED",
+          "OUT_OF_SCOPE_CHANGE",
+          "LOCKED_HASH_CHANGED",
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    "error": { "$ref": "#/$defs/error" }
+  },
+  "$defs": {
+    "pathList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clean", "changes"],
+      "properties": {
+        "clean": { "type": ["boolean", "null"] },
+        "changes": { "$ref": "#/$defs/pathList" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "lockedPaths", "allowedPaths", "workingDirectory", "verification"],
+      "properties": {
+        "version": { "const": 1 },
+        "lockedPaths": { "$ref": "#/$defs/pathList" },
+        "allowedPaths": { "$ref": "#/$defs/pathList" },
+        "workingDirectory": { "type": "string" },
+        "verification": { "$ref": "#/$defs/command" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable", "args"],
+      "properties": {
+        "executable": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "pathPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepted", "allowedChanges", "lockedChanges", "outOfScopeChanges"],
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "allowedChanges": { "$ref": "#/$defs/pathList" },
+        "lockedChanges": { "$ref": "#/$defs/pathList" },
+        "outOfScopeChanges": { "$ref": "#/$defs/pathList" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "baseHash", "headHash", "unchanged", "files", "missingPaths"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "baseHash": { "type": ["string", "null"] },
+        "headHash": { "type": ["string", "null"] },
+        "unchanged": { "type": ["boolean", "null"] },
+        "files": { "$ref": "#/$defs/pathList" },
+        "missingPaths": { "$ref": "#/$defs/pathList" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed",
+        "skipped",
+        "exitCode",
+        "signal",
+        "timedOut",
+        "stdout",
+        "stderr",
+        "stdoutTruncated",
+        "stderrTruncated",
+        "durationMs"
+      ],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "skipped": { "type": "boolean" },
+        "exitCode": { "type": ["integer", "null"] },
+        "signal": { "type": ["string", "null"] },
+        "timedOut": { "type": "boolean" },
+        "stdout": { "type": "string" },
+        "stderr": { "type": "string" },
+        "stdoutTruncated": { "type": "boolean" },
+        "stderrTruncated": { "type": "boolean" },
+        "durationMs": { "type": "number", "minimum": 0 }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

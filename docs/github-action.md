@@ -59,6 +59,8 @@ Every other result is `rejected`. Stable reason codes identify the failed bounda
 
 The action writes a readable GitHub job summary and uploads `versionless-evidence` as a JSON artifact, including when setup or verification is rejected. The JSON records commit SHAs, changed paths, policy, proof hashes, command output tail, truncation flags, duration, reason codes, and any stable setup error code. Standard output and error are each limited to their final 64 KiB.
 
+Consumers can validate the artifact against the published [`versionless.pr_check.v1` JSON Schema](evidence.schema.json).
+
 Rerunning the action safely replaces its prior untracked evidence file. A tracked file at the same path is never ignored by workspace-integrity checks.
 
 Action outputs are:

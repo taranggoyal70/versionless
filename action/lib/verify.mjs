@@ -48,6 +48,7 @@ export async function runVerification(
       if (killTimeout) clearTimeout(killTimeout);
       if (settlementTimeout) clearTimeout(settlementTimeout);
       resolveResult({
+        skipped: false,
         ...result,
         timedOut,
         stdout: stdout.toString("utf8"),

@@ -1,7 +1,17 @@
 import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 
+export const EXECUTABLE_PATTERN = "^[A-Za-z0-9_./+-]+$";
+export const POLICY_LIMITS = Object.freeze({
+  pathCount: 64,
+  pathLength: 300,
+  executableLength: 240,
+  argumentCount: 32,
+  argumentLength: 500,
+});
+
 const POLICY_FIELDS = new Set(["$schema", "version", "lockedPaths", "allowedPaths", "workingDirectory", "verification"]);
 const VERIFICATION_FIELDS = new Set(["executable", "args"]);
+const executablePattern = new RegExp(EXECUTABLE_PATTERN);
 
 export class PolicyError extends Error {
   constructor(code, message) {
@@ -29,7 +39,7 @@ export function loadPolicyFromText(text) {
     throw new PolicyError("INVALID_POLICY", "lockedPaths and allowedPaths must be non-empty string arrays.");
   }
   if (policy.workingDirectory !== undefined
-    && (typeof policy.workingDirectory !== "string" || policy.workingDirectory.length > 300)) {
+    && (typeof policy.workingDirectory !== "string" || policy.workingDirectory.length > POLICY_LIMITS.pathLength)) {
     throw new PolicyError("INVALID_POLICY", "workingDirectory must be a repository-relative string.");
   }
   if (isObject(policy.verification)) {
@@ -38,11 +48,13 @@ export function loadPolicyFromText(text) {
   if (!isObject(policy.verification)
     || typeof policy.verification.executable !== "string"
     || policy.verification.executable.length === 0
-    || policy.verification.executable.length > 240
-    || !/^[A-Za-z0-9_./+-]+$/.test(policy.verification.executable)
+    || policy.verification.executable.length > POLICY_LIMITS.executableLength
+    || !executablePattern.test(policy.verification.executable)
     || !Array.isArray(policy.verification.args)
-    || policy.verification.args.length > 32
-    || !policy.verification.args.every((argument) => typeof argument === "string" && argument.length <= 500)) {
+    || policy.verification.args.length > POLICY_LIMITS.argumentCount
+    || !policy.verification.args.every(
+      (argument) => typeof argument === "string" && argument.length <= POLICY_LIMITS.argumentLength,
+    )) {
     throw new PolicyError("INVALID_VERIFICATION", "verification must contain a safe executable and string argument array.");
   }
   const lockedPaths = normalizePolicyPaths(policy.lockedPaths);
@@ -72,8 +84,10 @@ function isObject(value) {
 function isNonEmptyStringArray(value) {
   return Array.isArray(value)
     && value.length > 0
-    && value.length <= 64
-    && value.every((item) => typeof item === "string" && item.length > 0 && item.length <= 300);
+    && value.length <= POLICY_LIMITS.pathCount
+    && value.every(
+      (item) => typeof item === "string" && item.length > 0 && item.length <= POLICY_LIMITS.pathLength,
+    );
 }
 
 function assertKnownFields(value, allowedFields, location) {

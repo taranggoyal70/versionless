@@ -14,6 +14,7 @@ describe("GitHub Action metadata", () => {
     expect(metadata).toContain("status:");
     expect(metadata).toContain("evidence-path:");
     expect(metadata).toContain("locked-hash:");
+    expect(metadata).toContain("reason-codes:");
   });
 
   it("always uploads the machine-readable evidence bundle", async () => {

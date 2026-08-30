@@ -69,5 +69,6 @@ describe("runAction", () => {
       .resolves.toContain('"code": "MALFORMED_JSON"');
     await expect(readFile(summaryPath, "utf8")).resolves.toContain("Check could not establish proof");
     await expect(readFile(githubOutputPath, "utf8")).resolves.toContain("status=rejected");
+    await expect(readFile(githubOutputPath, "utf8")).resolves.toContain("reason-codes=CHECK_FAILED");
   });
 });

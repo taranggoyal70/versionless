@@ -63,7 +63,8 @@ Action outputs are:
 
 - `status`: `verified` or `rejected`;
 - `evidence-path`: path to the generated JSON file; and
-- `locked-hash`: SHA-256 fingerprint of the locked contract at the pull request head.
+- `locked-hash`: SHA-256 fingerprint of the locked contract at the pull request head; and
+- `reason-codes`: comma-separated rejection reasons, empty for a verified pull request.
 
 ## Security boundary
 

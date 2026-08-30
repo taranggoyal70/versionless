@@ -37,6 +37,7 @@ export async function runAction({ repository, environment = process.env }) {
       status: evidence.status,
       "evidence-path": evidencePath,
       "locked-hash": evidence.integrity.headHash ?? "",
+      "reason-codes": evidence.reasons.join(","),
     });
   }
 

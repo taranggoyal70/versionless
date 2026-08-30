@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -27,5 +27,15 @@ describe("writeEvidence", () => {
     const repository = await mkdtemp(join(tmpdir(), "versionless-evidence-"));
     directories.push(repository);
     await expect(writeEvidence(repository, "../evidence.json", {})).rejects.toThrowError(TypeError);
+  });
+
+  it("refuses to follow an output directory symlink outside the repository", async () => {
+    const repository = await mkdtemp(join(tmpdir(), "versionless-evidence-"));
+    const outside = await mkdtemp(join(tmpdir(), "versionless-outside-"));
+    directories.push(repository, outside);
+    await symlink(outside, join(repository, ".versionless"));
+
+    await expect(writeEvidence(repository, ".versionless/evidence.json", {}))
+      .rejects.toThrowError("Evidence path must stay inside the repository.");
   });
 });

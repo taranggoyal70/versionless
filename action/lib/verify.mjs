@@ -24,8 +24,10 @@ export async function runVerification(
 
   const startedAt = Date.now();
   return new Promise((resolveResult) => {
+    const isolatedProcessGroup = process.platform !== "win32";
     const child = spawn(command.executable, command.args, {
       cwd,
+      detached: isolatedProcessGroup,
       env: process.env,
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
@@ -59,10 +61,10 @@ export async function runVerification(
     });
     timeout = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      terminateProcessTree(child, "SIGTERM", isolatedProcessGroup);
       killTimeout = setTimeout(() => {
         if (settled) return;
-        child.kill("SIGKILL");
+        terminateProcessTree(child, "SIGKILL", isolatedProcessGroup);
         settlementTimeout = setTimeout(() => {
           finish({ passed: false, exitCode: null, signal: "SIGKILL" });
         }, killGraceMs);
@@ -80,6 +82,18 @@ export async function runVerification(
       });
     });
   });
+}
+
+function terminateProcessTree(child, signal, isolatedProcessGroup) {
+  if (isolatedProcessGroup && child.pid) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch (error) {
+      if (error?.code === "ESRCH") return;
+    }
+  }
+  child.kill(signal);
 }
 
 function appendTail(current, next) {

@@ -87,4 +87,38 @@ describe("runVerification", () => {
       args: ["-e", "process.exit(0)"],
     })).rejects.toThrowError("Verification working directory must stay inside the repository.");
   });
+
+  it("kills descendants spawned by a timed-out verification wrapper", async () => {
+    const wrapper = [
+      "const {spawn}=require('node:child_process');",
+      "const child=spawn(process.execPath,['-e',\"process.on('SIGTERM',()=>{});setInterval(()=>{},1000)\"],{stdio:['ignore','inherit','inherit']});",
+      "process.stdout.write(`descendant:${child.pid}\\n`);",
+      "process.on('SIGTERM',()=>{});",
+      "setInterval(()=>{},1000);",
+    ].join("");
+
+    const result = await runVerification(
+      process.cwd(),
+      ".",
+      { executable: process.execPath, args: ["-e", wrapper] },
+      { timeoutMs: 150, killGraceMs: 50 },
+    );
+    const descendantPid = Number(result.stdout.match(/descendant:(\d+)/)?.[1]);
+
+    expect(descendantPid).toBeGreaterThan(0);
+    try {
+      expect(processExists(descendantPid)).toBe(false);
+    } finally {
+      if (processExists(descendantPid)) process.kill(descendantPid, "SIGKILL");
+    }
+  });
 });
+
+function processExists(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}

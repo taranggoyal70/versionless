@@ -25,8 +25,8 @@ async function ensureLockDir() {
 async function acquireLock(): Promise<boolean> {
   if (activeRun) return false;
   activeRun = true;
-  await ensureLockDir();
   try {
+    await ensureLockDir();
     await writeFile(LOCK_FILE, process.pid.toString(), { flag: "wx" });
     return true;
   } catch {

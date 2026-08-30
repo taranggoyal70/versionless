@@ -1,6 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { runVerification } from "./lib/verify.mjs";
+
+const directories = [];
+
+afterEach(async () => {
+  await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+});
 
 describe("runVerification", () => {
   it("captures a successful command without invoking a shell", async () => {
@@ -65,5 +74,17 @@ describe("runVerification", () => {
       signal: "SIGKILL",
       timedOut: true,
     });
+  });
+
+  it("refuses a working directory symlink outside the repository", async () => {
+    const repository = await mkdtemp(join(tmpdir(), "versionless-verify-"));
+    const outside = await mkdtemp(join(tmpdir(), "versionless-outside-"));
+    directories.push(repository, outside);
+    await symlink(outside, join(repository, "workspace"));
+
+    await expect(runVerification(repository, "workspace", {
+      executable: process.execPath,
+      args: ["-e", "process.exit(0)"],
+    })).rejects.toThrowError("Verification working directory must stay inside the repository.");
   });
 });

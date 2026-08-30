@@ -1,19 +1,23 @@
 import { spawn } from "node:child_process";
+import { realpath } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 
 import { normalizeRepositoryPath } from "./paths.mjs";
 
 const MAX_CAPTURE_BYTES = 64 * 1024;
 
-export function runVerification(
+export async function runVerification(
   repository,
   workingDirectory,
   command,
   { timeoutMs = 10 * 60 * 1000, killGraceMs = 5_000 } = {},
 ) {
-  const repositoryRoot = resolve(repository);
+  const repositoryRoot = await realpath(repository);
   const normalizedWorkingDirectory = normalizeRepositoryPath(workingDirectory);
-  const cwd = normalizedWorkingDirectory === "." ? repositoryRoot : resolve(repositoryRoot, normalizedWorkingDirectory);
+  const requestedWorkingDirectory = normalizedWorkingDirectory === "."
+    ? repositoryRoot
+    : resolve(repositoryRoot, normalizedWorkingDirectory);
+  const cwd = await realpath(requestedWorkingDirectory);
   if (cwd !== repositoryRoot && !cwd.startsWith(`${repositoryRoot}${sep}`)) {
     throw new TypeError("Verification working directory must stay inside the repository.");
   }

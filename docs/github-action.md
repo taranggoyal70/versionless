@@ -2,7 +2,7 @@
 
 Versionless is an installable GitHub check for pull requests made by humans or coding agents. It answers a narrower question than a code review tool:
 
-> Did this pull request change only the approved implementation, preserve the original proof, and pass that proof against the exact proposed commit?
+> Did this pull request change only allowed implementation, preserve the locked contract, and pass that contract against the exact proposed commit?
 
 ## Install
 
@@ -51,7 +51,7 @@ Every other result is `rejected`. Stable reason codes identify the failed bounda
 | `WORKTREE_DIRTY` | The workspace contains files that differ from the requested head. |
 | `LOCKED_PATH_MISSING` | A configured proof path does not exist in the base commit. |
 | `LOCKED_PATH_CHANGED` | The pull request directly changed a locked path. |
-| `OUT_OF_SCOPE_CHANGE` | The pull request changed a path outside the approved scope. |
+| `OUT_OF_SCOPE_CHANGE` | The pull request changed a path outside the allowed scope. |
 | `LOCKED_HASH_CHANGED` | The locked Git-object fingerprint differs between base and head. |
 | `VERIFICATION_FAILED` | The original behavioral command did not pass. |
 
@@ -63,7 +63,7 @@ Action outputs are:
 
 - `status`: `verified` or `rejected`;
 - `evidence-path`: path to the generated JSON file; and
-- `locked-hash`: SHA-256 fingerprint of the locked proof at the pull request head.
+- `locked-hash`: SHA-256 fingerprint of the locked contract at the pull request head.
 
 ## Security boundary
 

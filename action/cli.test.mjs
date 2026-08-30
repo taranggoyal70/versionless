@@ -48,7 +48,7 @@ describe("Versionless action entrypoint", () => {
 async function configuredRepository() {
   const repository = await createRepository();
   await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
-  await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
+  await writeRepositoryFile(repository, "test/gate.test.ts", "locked contract\n");
   await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
     version: 1,
     lockedPaths: ["test"],

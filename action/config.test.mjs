@@ -47,7 +47,7 @@ describe("loadPolicyFromText", () => {
     }))).toThrowError(expect.objectContaining({ code: "INVALID_VERIFICATION" }));
   });
 
-  it("rejects unsafe paths and allowed paths hidden inside locked proof", () => {
+  it("rejects unsafe paths and allowed paths hidden inside the locked contract", () => {
     expect(() => loadPolicyFromText(JSON.stringify({
       version: 1,
       lockedPaths: ["../test"],
@@ -63,7 +63,7 @@ describe("loadPolicyFromText", () => {
     }))).toThrowError(expect.objectContaining({ code: "OVERLAPPING_PATH_POLICY" }));
   });
 
-  it("allows narrow locked proof inside a broader implementation scope", () => {
+  it("allows a narrow locked contract inside a broader implementation scope", () => {
     const policy = loadPolicyFromText(JSON.stringify({
       version: 1,
       lockedPaths: ["src/gate.test.ts"],

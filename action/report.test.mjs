@@ -13,13 +13,13 @@ describe("formatJobSummary", () => {
       changedPaths: ["src/gate.ts", "test/gate.test.ts"],
       reasons: ["CHECKOUT_MISMATCH", "WORKTREE_DIRTY", "LOCKED_PATH_CHANGED"],
       integrity: { unchanged: false, baseHash: "c".repeat(64), headHash: "d".repeat(64) },
-      pathPolicy: { approvedChanges: ["src/gate.ts"], lockedChanges: ["test/gate.test.ts"], outOfScopeChanges: [] },
+      pathPolicy: { allowedChanges: ["src/gate.ts"], lockedChanges: ["test/gate.test.ts"], outOfScopeChanges: [] },
       verification: { passed: false, skipped: true, durationMs: 0 },
     });
 
     expect(summary).toContain("# Versionless PR check");
     expect(summary).toContain("Rejected");
-    expect(summary).toContain("Locked proof changed");
+    expect(summary).toContain("Locked contract changed");
     expect(summary).toContain("Checked-out commit does not match the requested head");
     expect(summary).toContain("Workspace contains changes outside the requested head");
     expect(summary).toContain("1 uncommitted change(s)");

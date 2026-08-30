@@ -1,7 +1,7 @@
 import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 
 export function evaluatePathPolicy(changedPaths, policy) {
-  const approvedChanges = [];
+  const allowedChanges = [];
   const lockedChanges = [];
   const outOfScopeChanges = [];
 
@@ -9,7 +9,7 @@ export function evaluatePathPolicy(changedPaths, policy) {
     if (policy.lockedPaths.some((locked) => isPathWithin(path, locked))) {
       lockedChanges.push(path);
     } else if (policy.allowedPaths.some((allowed) => isPathWithin(path, allowed))) {
-      approvedChanges.push(path);
+      allowedChanges.push(path);
     } else {
       outOfScopeChanges.push(path);
     }
@@ -17,7 +17,7 @@ export function evaluatePathPolicy(changedPaths, policy) {
 
   return {
     accepted: lockedChanges.length === 0 && outOfScopeChanges.length === 0,
-    approvedChanges,
+    allowedChanges,
     lockedChanges,
     outOfScopeChanges,
   };

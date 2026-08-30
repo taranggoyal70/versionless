@@ -58,7 +58,7 @@ function failedCheckEvidence({ baseSha, headSha, configPath }, error) {
     policy: null,
     pathPolicy: {
       accepted: false,
-      approvedChanges: [],
+      allowedChanges: [],
       lockedChanges: [],
       outOfScopeChanges: [],
     },

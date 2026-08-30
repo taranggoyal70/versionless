@@ -6,7 +6,7 @@ Versionless proves that a code change preserves the rules it was asked to satisf
 
 ## Glossary
 
-- **Base commit**: the trusted pull request commit that owns policy and locked proof.
+- **Base commit**: the trusted pull request commit that owns policy and the locked contract.
 - **Head commit**: the exact proposed commit that Versionless verifies.
 - **Allowed path**: an implementation path the pull request may change.
 - **Locked contract**: tests, fixtures, generated contracts, or lockfiles the author must not change.
@@ -16,7 +16,7 @@ Versionless proves that a code change preserves the rules it was asked to satisf
 
 ## Invariants
 
-1. A pull request may edit approved implementation paths but never the locked contract.
+1. A pull request may edit allowed paths but never the locked contract.
 2. A compilation success is not a behavioral verification.
 3. Policy comes from the base commit and verification runs against the exact head commit.
 4. Sponsor integrations must strengthen generation, isolation, review, memory, or proof.

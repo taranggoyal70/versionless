@@ -4,7 +4,7 @@ Status: active
 
 ## Problem
 
-Coding agents can open pull requests quickly, but a green CI job does not prove that the agent left the definition of success unchanged. Teams need a check that fails closed when an agent edits protected proof, changes files outside its approved scope, or produces code that fails the original verification command.
+Coding agents can open pull requests quickly, but a green CI job does not prove that the agent left the definition of success unchanged. Teams need a check that fails closed when an agent edits the locked contract, changes files outside its allowed scope, or produces code that fails the original verification command.
 
 ## Product promise
 

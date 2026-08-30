@@ -18,7 +18,7 @@ describe("listChangedPaths", () => {
   it("returns sorted repository paths changed between two commits", async () => {
     const repository = await createRepository();
     await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
-    await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
+    await writeRepositoryFile(repository, "test/gate.test.ts", "locked contract\n");
     const baseSha = commitAll(repository, "base");
 
     await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
@@ -36,7 +36,7 @@ describe("hashLockedPaths", () => {
   it("fingerprints the locked Git objects at each commit", async () => {
     const repository = await createRepository();
     await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
-    await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
+    await writeRepositoryFile(repository, "test/gate.test.ts", "locked contract\n");
     const baseSha = commitAll(repository, "base");
 
     await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");

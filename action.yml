@@ -1,5 +1,5 @@
 name: Versionless PR Proof
-description: Reject pull requests that alter locked proof or fail the repository's behavioral contract.
+description: Reject pull requests that alter the locked contract or fail its behavioral verification.
 author: Versionless
 
 branding:
@@ -30,7 +30,7 @@ outputs:
     description: Repository-relative path to the evidence bundle.
     value: ${{ steps.check.outputs.evidence-path }}
   locked-hash:
-    description: SHA-256 fingerprint of the locked proof at the pull request head.
+    description: SHA-256 fingerprint of the locked contract at the pull request head.
     value: ${{ steps.check.outputs.locked-hash }}
 
 runs:

@@ -8,7 +8,7 @@ The included Codex migration runtime applies the same model locally: before Code
 
 ## Add Versionless to a repository
 
-Copy the [starter policy](examples/github-action/.versionless.json) to `.versionless.json`, then set the locked proof, approved implementation paths, and behavioral command for your repository.
+Copy the [starter policy](examples/github-action/.versionless.json) to `.versionless.json`, then set the locked contract, allowed implementation paths, and behavioral command for your repository.
 
 Copy the [starter workflow](examples/github-action/versionless.yml) to `.github/workflows/versionless.yml`. It runs on every pull request with read-only permissions:
 
@@ -19,7 +19,7 @@ Copy the [starter workflow](examples/github-action/versionless.yml) to `.github/
     ref: ${{ github.event.pull_request.head.sha }}
     fetch-depth: 0
 
-- name: Verify implementation against locked proof
+- name: Verify implementation against locked contract
   uses: taranggoyal70/versionless@main
   with:
     base-sha: ${{ github.event.pull_request.base.sha }}

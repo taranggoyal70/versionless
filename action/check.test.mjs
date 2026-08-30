@@ -28,7 +28,7 @@ describe("runPullRequestCheck", () => {
       changedPaths: ["src/gate.ts"],
       pathPolicy: {
         accepted: true,
-        approvedChanges: ["src/gate.ts"],
+        allowedChanges: ["src/gate.ts"],
         lockedChanges: [],
         outOfScopeChanges: [],
       },
@@ -39,7 +39,7 @@ describe("runPullRequestCheck", () => {
     expect(evidence.integrity.baseHash).toBe(evidence.integrity.headHash);
   });
 
-  it("rejects a pull request that changes the locked proof", async () => {
+  it("rejects a pull request that changes the locked contract", async () => {
     const repository = await createRepository();
     const baseSha = await seedRepository(repository);
     await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
@@ -158,7 +158,7 @@ async function seedRepository(
   verificationScript = "const fs=require('fs');process.exit(fs.readFileSync('src/gate.ts','utf8').includes('true')?0:1)",
 ) {
   await writeRepositoryFile(repository, "src/gate.ts", "export const gate = false;\n");
-  await writeRepositoryFile(repository, "test/gate.test.ts", "locked proof\n");
+  await writeRepositoryFile(repository, "test/gate.test.ts", "locked contract\n");
   await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
     version: 1,
     lockedPaths: ["test"],

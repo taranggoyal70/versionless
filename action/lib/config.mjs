@@ -54,7 +54,7 @@ export function loadPolicyFromText(text) {
     throw new PolicyError("INVALID_PATH", "Versionless policy paths must stay inside the repository.");
   }
   if (lockedPaths.some((locked) => allowedPaths.some((allowed) => isPathWithin(allowed, locked)))) {
-    throw new PolicyError("OVERLAPPING_PATH_POLICY", "An allowed path cannot be nested inside locked proof.");
+    throw new PolicyError("OVERLAPPING_PATH_POLICY", "An allowed path cannot be nested inside the locked contract.");
   }
   return {
     version: policy.version,

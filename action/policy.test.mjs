@@ -11,7 +11,7 @@ describe("evaluatePathPolicy", () => {
 
     expect(result).toEqual({
       accepted: false,
-      approvedChanges: ["src/gate.ts"],
+      allowedChanges: ["src/gate.ts"],
       lockedChanges: ["test/gate.test.ts"],
       outOfScopeChanges: ["docs/notes.md"],
     });
@@ -25,7 +25,7 @@ describe("evaluatePathPolicy", () => {
 
     expect(result).toMatchObject({
       accepted: false,
-      approvedChanges: ["src/gate.ts"],
+      allowedChanges: ["src/gate.ts"],
       lockedChanges: ["src/gate.test.ts"],
     });
   });

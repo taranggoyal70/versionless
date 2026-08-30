@@ -12,12 +12,19 @@ export class ActionInputError extends Error {
 }
 
 export async function runAction({ repository, environment = process.env }) {
-  const baseSha = required(environment.INPUT_BASE_SHA, "base-sha");
-  const headSha = required(environment.INPUT_HEAD_SHA, "head-sha");
+  const baseSha = environment.INPUT_BASE_SHA || "";
+  const headSha = environment.INPUT_HEAD_SHA || "";
   const configPath = environment.INPUT_CONFIG_PATH || ".versionless.json";
   const requestedEvidencePath = environment.INPUT_EVIDENCE_PATH || ".versionless/evidence.json";
 
-  const evidence = await runPullRequestCheck({ repository, baseSha, headSha, configPath });
+  let evidence;
+  try {
+    required(baseSha, "base-sha");
+    required(headSha, "head-sha");
+    evidence = await runPullRequestCheck({ repository, baseSha, headSha, configPath });
+  } catch (error) {
+    evidence = failedCheckEvidence({ baseSha, headSha, configPath }, error);
+  }
   const evidencePath = await writeEvidence(repository, requestedEvidencePath, evidence);
   const summary = formatJobSummary(evidence);
 
@@ -28,11 +35,54 @@ export async function runAction({ repository, environment = process.env }) {
     await writeActionOutputs(environment.GITHUB_OUTPUT, {
       status: evidence.status,
       "evidence-path": evidencePath,
-      "locked-hash": evidence.integrity.headHash,
+      "locked-hash": evidence.integrity.headHash ?? "",
     });
   }
 
   return { evidence, evidencePath, summary };
+}
+
+function failedCheckEvidence({ baseSha, headSha, configPath }, error) {
+  const code = typeof error?.code === "string" ? error.code : "CHECK_ERROR";
+  const message = error instanceof Error ? error.message : "Versionless could not establish proof.";
+  return {
+    schema: "versionless.pr_check.v1",
+    createdAt: new Date().toISOString(),
+    status: "rejected",
+    baseSha,
+    headSha,
+    checkoutSha: null,
+    workspace: { clean: null, changes: [] },
+    configPath,
+    changedPaths: [],
+    policy: null,
+    pathPolicy: {
+      accepted: false,
+      approvedChanges: [],
+      lockedChanges: [],
+      outOfScopeChanges: [],
+    },
+    integrity: {
+      algorithm: "sha256",
+      baseHash: null,
+      headHash: null,
+      unchanged: null,
+      files: [],
+      missingPaths: [],
+    },
+    verification: {
+      passed: false,
+      skipped: true,
+      exitCode: null,
+      signal: null,
+      timedOut: false,
+      stdout: "",
+      stderr: "",
+      durationMs: 0,
+    },
+    reasons: ["CHECK_FAILED"],
+    error: { code, message },
+  };
 }
 
 function required(value, inputName) {

@@ -1,4 +1,5 @@
 const reasonLabels = {
+  CHECK_FAILED: "Check could not establish proof",
   CHECKOUT_MISMATCH: "Checked-out commit does not match the requested head",
   WORKTREE_DIRTY: "Workspace contains changes outside the requested head",
   LOCKED_PATH_MISSING: "Configured locked proof is missing",
@@ -11,11 +12,22 @@ const reasonLabels = {
 export function formatJobSummary(evidence) {
   const decision = evidence.status === "verified" ? "Verified" : "Rejected";
   const icon = evidence.status === "verified" ? "✅" : "❌";
-  const verification = evidence.verification.skipped
-    ? "Verification skipped because the integrity boundary failed."
-    : evidence.verification.passed
-      ? `Verification passed in ${evidence.verification.durationMs}ms.`
-      : `Verification failed in ${evidence.verification.durationMs}ms.`;
+  let verification;
+  if (evidence.error) {
+    verification = "Verification did not run because the check could not establish proof.";
+  } else if (evidence.verification.skipped) {
+    verification = "Verification skipped because the integrity boundary failed.";
+  } else if (evidence.verification.passed) {
+    verification = `Verification passed in ${evidence.verification.durationMs}ms.`;
+  } else {
+    verification = `Verification failed in ${evidence.verification.durationMs}ms.`;
+  }
+  const lockedProof = evidence.integrity.unchanged === null
+    ? "Unavailable"
+    : evidence.integrity.unchanged ? "Unchanged" : "Changed";
+  const workspace = evidence.workspace.clean === null
+    ? "Unavailable"
+    : evidence.workspace.clean ? "Clean" : `${evidence.workspace.changes.length} uncommitted change(s)`;
 
   return [
     "# Versionless PR check",
@@ -27,8 +39,8 @@ export function formatJobSummary(evidence) {
     `| Base commit | \`${short(evidence.baseSha)}\` |`,
     `| Head commit | \`${short(evidence.headSha)}\` |`,
     `| Checked-out commit | \`${short(evidence.checkoutSha)}\` |`,
-    `| Workspace | ${evidence.workspace.clean ? "Clean" : `${evidence.workspace.changes.length} uncommitted change(s)`} |`,
-    `| Locked proof | ${evidence.integrity.unchanged ? "Unchanged" : "Changed"} |`,
+    `| Workspace | ${workspace} |`,
+    `| Locked proof | ${lockedProof} |`,
     `| Verification | ${verification} |`,
     "",
     "### Decision reasons",
@@ -43,7 +55,9 @@ export function formatJobSummary(evidence) {
     "### Out-of-scope changes",
     ...pathBullets(evidence.pathPolicy.outOfScopeChanges),
     "",
-    `<sub>Locked SHA-256: \`${short(evidence.integrity.headHash, 16)}\`</sub>`,
+    evidence.integrity.headHash
+      ? `<sub>Locked SHA-256: \`${short(evidence.integrity.headHash, 16)}\`</sub>`
+      : `<sub>Error: ${safeInline(evidence.error?.code ?? "CHECK_ERROR")}</sub>`,
     "",
   ].join("\n");
 }
@@ -62,5 +76,6 @@ function safeInline(value) {
 }
 
 function short(value, length = 12) {
+  if (typeof value !== "string" || value.length === 0) return "unavailable";
   return safeInline(value).slice(0, length);
 }

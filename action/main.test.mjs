@@ -42,4 +42,32 @@ describe("runAction", () => {
     await expect(readFile(summaryPath, "utf8")).resolves.toContain("✅ Verified");
     await expect(readFile(githubOutputPath, "utf8")).resolves.toContain("status=verified");
   });
+
+  it("publishes rejected evidence when policy setup fails", async () => {
+    const repository = await createRepository();
+    await writeRepositoryFile(repository, ".versionless.json", "{not-json\n");
+    const headSha = commitAll(repository, "invalid policy");
+    const summaryPath = join(repository, "summary.md");
+    const githubOutputPath = join(repository, "github-output.txt");
+
+    const result = await runAction({
+      repository,
+      environment: {
+        INPUT_BASE_SHA: headSha,
+        INPUT_HEAD_SHA: headSha,
+        GITHUB_STEP_SUMMARY: summaryPath,
+        GITHUB_OUTPUT: githubOutputPath,
+      },
+    });
+
+    expect(result.evidence).toMatchObject({
+      status: "rejected",
+      reasons: ["CHECK_FAILED"],
+      error: { code: "MALFORMED_JSON" },
+    });
+    await expect(readFile(join(repository, ".versionless/evidence.json"), "utf8"))
+      .resolves.toContain('"code": "MALFORMED_JSON"');
+    await expect(readFile(summaryPath, "utf8")).resolves.toContain("Check could not establish proof");
+    await expect(readFile(githubOutputPath, "utf8")).resolves.toContain("status=rejected");
+  });
 });

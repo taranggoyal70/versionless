@@ -46,6 +46,7 @@ Every other result is `rejected`. Stable reason codes identify the failed bounda
 
 | Code | Meaning |
 | --- | --- |
+| `CHECK_FAILED` | Inputs, configuration, or Git state prevented proof from being established. |
 | `CHECKOUT_MISMATCH` | The runner is not testing the requested pull request head. |
 | `WORKTREE_DIRTY` | The workspace contains files that differ from the requested head. |
 | `LOCKED_PATH_MISSING` | A configured proof path does not exist in the base commit. |
@@ -56,7 +57,7 @@ Every other result is `rejected`. Stable reason codes identify the failed bounda
 
 ## Evidence and outputs
 
-The action writes a readable GitHub job summary and uploads `versionless-evidence` as a JSON artifact, including on rejection. The JSON records commit SHAs, changed paths, policy, proof hashes, command output tail, duration, and reason codes.
+The action writes a readable GitHub job summary and uploads `versionless-evidence` as a JSON artifact, including when setup or verification is rejected. The JSON records commit SHAs, changed paths, policy, proof hashes, command output tail, duration, reason codes, and any stable setup error code.
 
 Action outputs are:
 

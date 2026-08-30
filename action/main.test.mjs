@@ -71,4 +71,24 @@ describe("runAction", () => {
     await expect(readFile(githubOutputPath, "utf8")).resolves.toContain("status=rejected");
     await expect(readFile(githubOutputPath, "utf8")).resolves.toContain("reason-codes=CHECK_FAILED");
   });
+
+  it("can rerun safely when its prior untracked evidence file exists", async () => {
+    const repository = await createRepository();
+    await writeRepositoryFile(repository, "test/gate.test.ts", "locked contract\n");
+    await writeRepositoryFile(repository, ".versionless.json", JSON.stringify({
+      version: 1,
+      lockedPaths: ["test"],
+      allowedPaths: ["src"],
+      verification: { executable: process.execPath, args: ["-e", "process.exit(0)"] },
+    }));
+    const headSha = commitAll(repository, "head");
+    const environment = { INPUT_BASE_SHA: headSha, INPUT_HEAD_SHA: headSha };
+
+    await expect(runAction({ repository, environment })).resolves.toMatchObject({
+      evidence: { status: "verified" },
+    });
+    await expect(runAction({ repository, environment })).resolves.toMatchObject({
+      evidence: { status: "verified", workspace: { clean: true } },
+    });
+  });
 });

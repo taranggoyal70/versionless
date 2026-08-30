@@ -93,6 +93,21 @@ describe("listWorkspaceChanges", () => {
       "src/untracked.ts",
     ]);
   });
+
+  it("ignores generated untracked evidence but never hides a tracked mutation", async () => {
+    const repository = await createRepository();
+    await writeRepositoryFile(repository, ".versionless/tracked.json", "committed\n");
+    commitAll(repository, "head");
+    await writeRepositoryFile(repository, ".versionless/tracked.json", "changed\n");
+    await writeRepositoryFile(repository, ".versionless/generated.json", "generated\n");
+
+    await expect(listWorkspaceChanges(repository, {
+      ignoredUntrackedPaths: [
+        ".versionless/tracked.json",
+        ".versionless/generated.json",
+      ],
+    })).resolves.toEqual([".versionless/tracked.json"]);
+  });
 });
 
 function git(repository, args) {

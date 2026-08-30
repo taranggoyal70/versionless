@@ -11,7 +11,13 @@ import { evaluatePathPolicy } from "./policy.mjs";
 import { RejectionReason } from "./reasons.mjs";
 import { runVerification } from "./verify.mjs";
 
-export async function runPullRequestCheck({ repository, baseSha, headSha, configPath = ".versionless.json" }) {
+export async function runPullRequestCheck({
+  repository,
+  baseSha,
+  headSha,
+  configPath = ".versionless.json",
+  ignoredUntrackedPaths = [],
+}) {
   const normalizedConfigPath = normalizeRepositoryPath(configPath);
   const policyText = await readFileAtCommit(repository, baseSha, normalizedConfigPath);
   const configuredPolicy = loadPolicyFromText(policyText);
@@ -25,7 +31,7 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
     hashLockedPaths(repository, baseSha, policy.lockedPaths),
     hashLockedPaths(repository, headSha, policy.lockedPaths),
     readCurrentHead(repository),
-    listWorkspaceChanges(repository),
+    listWorkspaceChanges(repository, { ignoredUntrackedPaths }),
   ]);
   const pathPolicy = evaluatePathPolicy(changedPaths, policy);
   const missingPaths = policy.lockedPaths.filter(

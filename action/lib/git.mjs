@@ -60,7 +60,7 @@ export async function readCurrentHead(repository) {
   return headSha;
 }
 
-export async function listWorkspaceChanges(repository) {
+export async function listWorkspaceChanges(repository, { ignoredUntrackedPaths = [] } = {}) {
   const commands = [
     ["diff", "--name-only", "-z", "HEAD", "--"],
     ["diff", "--cached", "--name-only", "-z", "HEAD", "--"],
@@ -71,11 +71,14 @@ export async function listWorkspaceChanges(repository) {
     ["-c", "core.quotepath=false", ...args],
     { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
   )));
-  return [...new Set(results
-    .flatMap(({ stdout }) => stdout.split("\0"))
-    .filter(Boolean)
-    .map(normalizeRepositoryPath))]
-    .sort();
+  const ignored = new Set(ignoredUntrackedPaths.map(normalizeRepositoryPath));
+  const trackedChanges = results.slice(0, 2).flatMap(({ stdout }) => parsePaths(stdout));
+  const untrackedChanges = parsePaths(results[2].stdout).filter((path) => !ignored.has(path));
+  return [...new Set([...trackedChanges, ...untrackedChanges])].sort();
+}
+
+function parsePaths(output) {
+  return output.split("\0").filter(Boolean).map(normalizeRepositoryPath);
 }
 
 function assertObjectId(value) {

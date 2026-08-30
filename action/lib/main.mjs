@@ -22,7 +22,13 @@ export async function runAction({ repository, environment = process.env }) {
   try {
     required(baseSha, "base-sha");
     required(headSha, "head-sha");
-    evidence = await runPullRequestCheck({ repository, baseSha, headSha, configPath });
+    evidence = await runPullRequestCheck({
+      repository,
+      baseSha,
+      headSha,
+      configPath,
+      ignoredUntrackedPaths: [requestedEvidencePath],
+    });
   } catch (error) {
     evidence = failedCheckEvidence({ baseSha, headSha, configPath }, error);
   }

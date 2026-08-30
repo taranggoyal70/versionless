@@ -2,6 +2,7 @@ import { runPullRequestCheck } from "./check.mjs";
 import { writeEvidence } from "./evidence.mjs";
 import { writeActionOutputs, writeStepSummary } from "./github.mjs";
 import { formatJobSummary } from "./report.mjs";
+import { RejectionReason } from "./reasons.mjs";
 
 export class ActionInputError extends Error {
   constructor(message) {
@@ -80,7 +81,7 @@ function failedCheckEvidence({ baseSha, headSha, configPath }, error) {
       stderr: "",
       durationMs: 0,
     },
-    reasons: ["CHECK_FAILED"],
+    reasons: [RejectionReason.CHECK_FAILED],
     error: { code, message },
   };
 }

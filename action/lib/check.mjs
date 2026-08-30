@@ -8,6 +8,7 @@ import {
 } from "./git.mjs";
 import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 import { evaluatePathPolicy } from "./policy.mjs";
+import { RejectionReason } from "./reasons.mjs";
 import { runVerification } from "./verify.mjs";
 
 export async function runPullRequestCheck({ repository, baseSha, headSha, configPath = ".versionless.json" }) {
@@ -40,12 +41,12 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
   };
   const reasons = rejectionReasons(pathPolicy, integrity);
   const workspace = { clean: workspaceChanges.length === 0, changes: workspaceChanges };
-  if (!workspace.clean) reasons.unshift("WORKTREE_DIRTY");
-  if (checkoutSha !== headSha) reasons.unshift("CHECKOUT_MISMATCH");
+  if (!workspace.clean) reasons.unshift(RejectionReason.WORKTREE_DIRTY);
+  if (checkoutSha !== headSha) reasons.unshift(RejectionReason.CHECKOUT_MISMATCH);
   const verification = reasons.length === 0
     ? await runVerification(repository, policy.workingDirectory, policy.verification)
     : skippedVerification();
-  if (!verification.passed && !verification.skipped) reasons.push("VERIFICATION_FAILED");
+  if (!verification.passed && !verification.skipped) reasons.push(RejectionReason.VERIFICATION_FAILED);
 
   return {
     schema: "versionless.pr_check.v1",
@@ -67,10 +68,10 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
 
 function rejectionReasons(pathPolicy, integrity) {
   const reasons = [];
-  if (integrity.missingPaths.length > 0) reasons.push("LOCKED_PATH_MISSING");
-  if (pathPolicy.lockedChanges.length > 0) reasons.push("LOCKED_PATH_CHANGED");
-  if (pathPolicy.outOfScopeChanges.length > 0) reasons.push("OUT_OF_SCOPE_CHANGE");
-  if (!integrity.unchanged) reasons.push("LOCKED_HASH_CHANGED");
+  if (integrity.missingPaths.length > 0) reasons.push(RejectionReason.LOCKED_PATH_MISSING);
+  if (pathPolicy.lockedChanges.length > 0) reasons.push(RejectionReason.LOCKED_PATH_CHANGED);
+  if (pathPolicy.outOfScopeChanges.length > 0) reasons.push(RejectionReason.OUT_OF_SCOPE_CHANGE);
+  if (!integrity.unchanged) reasons.push(RejectionReason.LOCKED_HASH_CHANGED);
   return reasons;
 }
 

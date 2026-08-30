@@ -1,13 +1,4 @@
-const reasonLabels = {
-  CHECK_FAILED: "Check could not establish proof",
-  CHECKOUT_MISMATCH: "Checked-out commit does not match the requested head",
-  WORKTREE_DIRTY: "Workspace contains changes outside the requested head",
-  LOCKED_PATH_MISSING: "Configured locked contract is missing",
-  LOCKED_PATH_CHANGED: "Locked contract changed",
-  OUT_OF_SCOPE_CHANGE: "A file changed outside the allowed scope",
-  LOCKED_HASH_CHANGED: "Locked contract fingerprint changed",
-  VERIFICATION_FAILED: "Behavioral verification failed",
-};
+import { rejectionReasonLabels } from "./reasons.mjs";
 
 export function formatJobSummary(evidence) {
   const decision = evidence.status === "verified" ? "Verified" : "Rejected";
@@ -44,7 +35,7 @@ export function formatJobSummary(evidence) {
     `| Verification | ${verification} |`,
     "",
     "### Decision reasons",
-    ...bullets(evidence.reasons.map((reason) => reasonLabels[reason] ?? reason), "No rejection reasons."),
+    ...bullets(evidence.reasons.map((reason) => rejectionReasonLabels[reason] ?? reason), "No rejection reasons."),
     "",
     "### Allowed changes",
     ...pathBullets(evidence.pathPolicy.allowedChanges),

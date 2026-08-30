@@ -80,6 +80,8 @@ function failedCheckEvidence({ baseSha, headSha, configPath }, error) {
       timedOut: false,
       stdout: "",
       stderr: "",
+      stdoutTruncated: false,
+      stderrTruncated: false,
       durationMs: 0,
     },
     reasons: [RejectionReason.CHECK_FAILED],

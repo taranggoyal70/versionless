@@ -84,6 +84,8 @@ function skippedVerification() {
     timedOut: false,
     stdout: "",
     stderr: "",
+    stdoutTruncated: false,
+    stderrTruncated: false,
     durationMs: 0,
   };
 }

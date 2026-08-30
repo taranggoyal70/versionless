@@ -41,6 +41,21 @@ describe("runVerification", () => {
     });
   });
 
+  it("marks captured output when only the tail fits in evidence", async () => {
+    const result = await runVerification(process.cwd(), ".", {
+      executable: process.execPath,
+      args: ["-e", "process.stdout.write('o'.repeat(70000));process.stderr.write('e'.repeat(70000))"],
+    });
+
+    expect(result).toMatchObject({
+      passed: true,
+      stdoutTruncated: true,
+      stderrTruncated: true,
+    });
+    expect(result.stdout).toHaveLength(64 * 1024);
+    expect(result.stderr).toHaveLength(64 * 1024);
+  });
+
   it("fails closed when verification exceeds its time limit", async () => {
     const result = await runVerification(
       process.cwd(),

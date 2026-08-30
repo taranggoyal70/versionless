@@ -57,7 +57,7 @@ Every other result is `rejected`. Stable reason codes identify the failed bounda
 
 ## Evidence and outputs
 
-The action writes a readable GitHub job summary and uploads `versionless-evidence` as a JSON artifact, including when setup or verification is rejected. The JSON records commit SHAs, changed paths, policy, proof hashes, command output tail, duration, reason codes, and any stable setup error code.
+The action writes a readable GitHub job summary and uploads `versionless-evidence` as a JSON artifact, including when setup or verification is rejected. The JSON records commit SHAs, changed paths, policy, proof hashes, command output tail, truncation flags, duration, reason codes, and any stable setup error code. Standard output and error are each limited to their final 64 KiB.
 
 Action outputs are:
 

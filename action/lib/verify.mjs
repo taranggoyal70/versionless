@@ -32,8 +32,10 @@ export async function runVerification(
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let stdout = "";
-    let stderr = "";
+    let stdout = Buffer.alloc(0);
+    let stderr = Buffer.alloc(0);
+    let stdoutTruncated = false;
+    let stderrTruncated = false;
     let timedOut = false;
     let settled = false;
     let timeout;
@@ -48,16 +50,22 @@ export async function runVerification(
       resolveResult({
         ...result,
         timedOut,
-        stdout,
-        stderr,
+        stdout: stdout.toString("utf8"),
+        stderr: stderr.toString("utf8"),
+        stdoutTruncated,
+        stderrTruncated,
         durationMs: Date.now() - startedAt,
       });
     };
     child.stdout.on("data", (chunk) => {
-      stdout = appendTail(stdout, chunk.toString());
+      const capture = appendTail(stdout, chunk);
+      stdout = capture.tail;
+      stdoutTruncated ||= capture.truncated;
     });
     child.stderr.on("data", (chunk) => {
-      stderr = appendTail(stderr, chunk.toString());
+      const capture = appendTail(stderr, chunk);
+      stderr = capture.tail;
+      stderrTruncated ||= capture.truncated;
     });
     timeout = setTimeout(() => {
       timedOut = true;
@@ -71,7 +79,9 @@ export async function runVerification(
       }, killGraceMs);
     }, timeoutMs);
     child.on("error", (error) => {
-      stderr = appendTail(stderr, error.message);
+      const capture = appendTail(stderr, Buffer.from(error.message));
+      stderr = capture.tail;
+      stderrTruncated ||= capture.truncated;
       finish({ passed: false, exitCode: null, signal: null });
     });
     child.on("close", (exitCode, signal) => {
@@ -97,6 +107,9 @@ function terminateProcessTree(child, signal, isolatedProcessGroup) {
 }
 
 function appendTail(current, next) {
-  const combined = `${current}${next}`;
-  return combined.length > MAX_CAPTURE_BYTES ? combined.slice(-MAX_CAPTURE_BYTES) : combined;
+  const combined = Buffer.concat([current, next]);
+  return {
+    tail: combined.length > MAX_CAPTURE_BYTES ? combined.subarray(-MAX_CAPTURE_BYTES) : combined,
+    truncated: combined.length > MAX_CAPTURE_BYTES,
+  };
 }

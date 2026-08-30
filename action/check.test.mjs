@@ -134,6 +134,23 @@ describe("runPullRequestCheck", () => {
       verification: { skipped: true },
     });
   });
+
+  it("rejects verification when files differ from the committed head", async () => {
+    const repository = await createRepository();
+    const baseSha = await seedRepository(repository);
+    await writeRepositoryFile(repository, "src/gate.ts", "export const gate = true;\n");
+    const headSha = commitAll(repository, "head");
+    await writeRepositoryFile(repository, "test/gate.test.ts", "locally weakened proof\n");
+
+    const evidence = await runPullRequestCheck({ repository, baseSha, headSha });
+
+    expect(evidence).toMatchObject({
+      status: "rejected",
+      workspace: { clean: false, changes: ["test/gate.test.ts"] },
+      reasons: ["WORKTREE_DIRTY"],
+      verification: { skipped: true },
+    });
+  });
 });
 
 async function seedRepository(

@@ -1,5 +1,11 @@
 import { loadPolicyFromText } from "./config.mjs";
-import { hashLockedPaths, listChangedPaths, readCurrentHead, readFileAtCommit } from "./git.mjs";
+import {
+  hashLockedPaths,
+  listChangedPaths,
+  listWorkspaceChanges,
+  readCurrentHead,
+  readFileAtCommit,
+} from "./git.mjs";
 import { isPathWithin, normalizeRepositoryPath } from "./paths.mjs";
 import { evaluatePathPolicy } from "./policy.mjs";
 import { runVerification } from "./verify.mjs";
@@ -14,10 +20,11 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
   };
 
   const changedPaths = await listChangedPaths(repository, baseSha, headSha);
-  const [baseProof, headProof, checkoutSha] = await Promise.all([
+  const [baseProof, headProof, checkoutSha, workspaceChanges] = await Promise.all([
     hashLockedPaths(repository, baseSha, policy.lockedPaths),
     hashLockedPaths(repository, headSha, policy.lockedPaths),
     readCurrentHead(repository),
+    listWorkspaceChanges(repository),
   ]);
   const pathPolicy = evaluatePathPolicy(changedPaths, policy);
   const missingPaths = policy.lockedPaths.filter(
@@ -32,6 +39,8 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
     missingPaths,
   };
   const reasons = rejectionReasons(pathPolicy, integrity);
+  const workspace = { clean: workspaceChanges.length === 0, changes: workspaceChanges };
+  if (!workspace.clean) reasons.unshift("WORKTREE_DIRTY");
   if (checkoutSha !== headSha) reasons.unshift("CHECKOUT_MISMATCH");
   const verification = reasons.length === 0
     ? await runVerification(repository, policy.workingDirectory, policy.verification)
@@ -45,6 +54,7 @@ export async function runPullRequestCheck({ repository, baseSha, headSha, config
     baseSha,
     headSha,
     checkoutSha,
+    workspace,
     configPath: normalizedConfigPath,
     changedPaths,
     policy,

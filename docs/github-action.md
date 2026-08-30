@@ -36,6 +36,7 @@ For a monorepo, add a repository-relative `workingDirectory`. The executable run
 A result is `verified` only when all of these are true:
 
 - the checked-out commit exactly matches `head-sha`;
+- the Git workspace has no staged, unstaged, or untracked files outside that commit;
 - policy is loaded from the trusted base commit;
 - every changed file is covered by `allowedPaths`;
 - no locked path or locked Git object changed; and
@@ -46,6 +47,7 @@ Every other result is `rejected`. Stable reason codes identify the failed bounda
 | Code | Meaning |
 | --- | --- |
 | `CHECKOUT_MISMATCH` | The runner is not testing the requested pull request head. |
+| `WORKTREE_DIRTY` | The workspace contains files that differ from the requested head. |
 | `LOCKED_PATH_MISSING` | A configured proof path does not exist in the base commit. |
 | `LOCKED_PATH_CHANGED` | The pull request directly changed a locked path. |
 | `OUT_OF_SCOPE_CHANGE` | The pull request changed a path outside the approved scope. |

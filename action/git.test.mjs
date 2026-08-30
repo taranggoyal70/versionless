@@ -1,6 +1,13 @@
+import { execFileSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { hashLockedPaths, listChangedPaths, readCurrentHead, readFileAtCommit } from "./lib/git.mjs";
+import {
+  hashLockedPaths,
+  listChangedPaths,
+  listWorkspaceChanges,
+  readCurrentHead,
+  readFileAtCommit,
+} from "./lib/git.mjs";
 import { cleanupRepositories, commitAll, createRepository, writeRepositoryFile } from "./test/repository.mjs";
 
 afterEach(async () => {
@@ -68,3 +75,26 @@ describe("readCurrentHead", () => {
     await expect(readCurrentHead(repository)).resolves.toBe(headSha);
   });
 });
+
+describe("listWorkspaceChanges", () => {
+  it("finds staged, unstaged, and untracked files outside the committed head", async () => {
+    const repository = await createRepository();
+    await writeRepositoryFile(repository, "src/staged.ts", "base\n");
+    await writeRepositoryFile(repository, "src/unstaged.ts", "base\n");
+    commitAll(repository, "head");
+    await writeRepositoryFile(repository, "src/staged.ts", "staged\n");
+    git(repository, ["add", "src/staged.ts"]);
+    await writeRepositoryFile(repository, "src/unstaged.ts", "unstaged\n");
+    await writeRepositoryFile(repository, "src/untracked.ts", "untracked\n");
+
+    await expect(listWorkspaceChanges(repository)).resolves.toEqual([
+      "src/staged.ts",
+      "src/unstaged.ts",
+      "src/untracked.ts",
+    ]);
+  });
+});
+
+function git(repository, args) {
+  return execFileSync("git", args, { cwd: repository });
+}

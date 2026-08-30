@@ -60,6 +60,24 @@ export async function readCurrentHead(repository) {
   return headSha;
 }
 
+export async function listWorkspaceChanges(repository) {
+  const commands = [
+    ["diff", "--name-only", "-z", "HEAD", "--"],
+    ["diff", "--cached", "--name-only", "-z", "HEAD", "--"],
+    ["ls-files", "--others", "--exclude-standard", "-z", "--"],
+  ];
+  const results = await Promise.all(commands.map((args) => execFileAsync(
+    "git",
+    ["-c", "core.quotepath=false", ...args],
+    { cwd: repository, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+  )));
+  return [...new Set(results
+    .flatMap(({ stdout }) => stdout.split("\0"))
+    .filter(Boolean)
+    .map(normalizeRepositoryPath))]
+    .sort();
+}
+
 function assertObjectId(value) {
   if (typeof value !== "string" || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(value)) {
     throw new TypeError("Git commit identifiers must be full hexadecimal object IDs.");
